@@ -1,0 +1,8 @@
+[package]
+name = "grot"
+version = "0.1.0"
+authors = ["Zomerfaun <zomerfaun@gmail.com>"]
+
+[dependencies]
+sdl2 = "0.31.0"
+failure = "0.1.1"
