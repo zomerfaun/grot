@@ -13,6 +13,9 @@ use sdl2::rect::Rect;
 use sdl2::render::{Canvas, RenderTarget};
 use sdl2::video::FullscreenType;
 
+// Run game state update logic at 60 frames per second
+const UPDATE_INTERVAL: f32 = 1.0 / 60.0;
+
 #[derive(Clone, Copy)]
 pub enum Tile {
     Empty,
@@ -64,7 +67,6 @@ impl Room {
 }
 
 pub struct Player {
-    instant: Instant,
     x: f32,
     y: f32,
     dx: f32,
@@ -72,9 +74,8 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(instant: Instant) -> Player {
+    pub fn new() -> Player {
         Player {
-            instant,
             x: 10.0,
             y: 10.0,
             dx: 0.0,
@@ -82,29 +83,21 @@ impl Player {
         }
     }
 
-    pub fn left_pressed(&mut self, now: Instant) {
-        self.update(now);
+    pub fn left_pressed(&mut self) {
         self.dx = -1.0;
     }
 
-    pub fn render<T: RenderTarget>(
-        &self,
-        canvas: &mut Canvas<T>,
-        now: Instant,
-    ) -> Result<(), Error> {
-        let elapsed = (now - self.instant).as_fractional_secs() as f32;
-        let x = (self.x + self.dx * elapsed).round() as i32;
-        let y = (self.y + self.dy * elapsed).round() as i32;
+    pub fn update(&mut self) {
+        self.x += self.dx * UPDATE_INTERVAL;
+        self.y += self.dy * UPDATE_INTERVAL;
+    }
+
+    pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
+        let x = self.x.round() as i32;
+        let y = self.y.round() as i32;
         canvas.set_draw_color(Color::RGB(0xff, 0xff, 0xff));
         canvas.fill_rect(Rect::new(x, y, 8, 20)).map_err(err_msg)?;
         Ok(())
-    }
-
-    fn update(&mut self, now: Instant) {
-        let elapsed = (now - self.instant).as_fractional_secs() as f32;
-        self.x += self.dx * elapsed;
-        self.y += self.dy * elapsed;
-        self.instant = now;
     }
 }
 
@@ -115,10 +108,9 @@ fn run() -> Result<(), Error> {
     let window = video.window("Grot", 640, 480).build()?;
     let mut canvas = window.into_canvas().present_vsync().build()?;
 
-    let start_time = Instant::now();
-    let mut now = start_time;
+    let mut last_update_time = Instant::now();
     let room = Room::new(20, 10);
-    let mut player = Player::new(start_time);
+    let mut player = Player::new();
 
     loop {
         for event in event_pump.poll_iter() {
@@ -147,14 +139,20 @@ fn run() -> Result<(), Error> {
                     keycode: Some(Keycode::Left),
                     repeat: false,
                     ..
-                } => player.left_pressed(now),
+                } => player.left_pressed(),
                 _ => eprintln!("Unhandled event of type {:?}", event),
             }
         }
 
-        now = Instant::now();
+        let mut updates_performed = 0;
+        while last_update_time.elapsed().as_fractional_secs() as f32 >= UPDATE_INTERVAL {
+            player.update();
+            last_update_time = Instant::now();
+            updates_performed += 1;
+        }
+        eprintln!("Updates performed: {}", updates_performed);
         room.render(&mut canvas)?;
-        player.render(&mut canvas, now)?;
+        player.render(&mut canvas)?;
         canvas.present();
     }
 }
