@@ -2,6 +2,7 @@ extern crate failure;
 extern crate floating_duration;
 extern crate sdl2;
 
+use std::ops::{AddAssign, Mul};
 use std::time::Instant;
 
 use failure::{err_msg, Error};
@@ -63,51 +64,86 @@ impl Room {
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct Vec2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Vec2 {
+    pub fn new(x: f32, y: f32) -> Vec2 {
+        Vec2 { x, y }
+    }
+}
+
+impl Default for Vec2 {
+    fn default() -> Vec2 {
+        Vec2::new(0.0, 0.0)
+    }
+}
+
+impl AddAssign for Vec2 {
+    fn add_assign(&mut self, other: Vec2) {
+        self.x += other.x;
+        self.y += other.y;
+    }
+}
+
+impl Mul<f32> for Vec2 {
+    type Output = Vec2;
+    fn mul(self, scalar: f32) -> Vec2 {
+        Vec2 {
+            x: self.x * scalar,
+            y: self.y * scalar,
+        }
+    }
+}
+
 pub struct Player {
-    x: f32,
-    y: f32,
-    dx: f32,
-    dy: f32,
+    position: Vec2,
+    speed: Vec2,
+    acceleration: Vec2,
 }
 
 impl Player {
     pub fn new() -> Player {
         Player {
-            x: 10.0,
-            y: 10.0,
-            dx: 0.0,
-            dy: 0.0,
+            position: Vec2::new(10.0, 10.0),
+            speed: Vec2::default(),
+            acceleration: Vec2::default(),
         }
     }
 
     pub fn left_pressed(&mut self) {
-        self.dx = -60.0;
+        self.speed.x = -60.0;
     }
 
     pub fn left_released(&mut self) {
-        if self.dx < 0.0 {
-            self.dx = 0.0;
+        if self.speed.x < 0.0 {
+            self.speed.x = 0.0;
         }
     }
 
     pub fn right_pressed(&mut self) {
-        self.dx = 60.0;
+        self.speed.x = 60.0;
     }
 
     pub fn right_released(&mut self) {
-        if self.dx > 0.0 {
-            self.dx = 0.0;
+        if self.speed.x > 0.0 {
+            self.speed.x = 0.0;
         }
     }
 
     pub fn update(&mut self, dt: f32) {
-        self.x += self.dx * dt;
-        self.y += self.dy * dt;
+        // Semi-implicit Euler integration
+        // See https://gafferongames.com/post/integration_basics/
+        self.speed += self.acceleration * dt;
+        self.position += self.speed * dt;
     }
 
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
-        let x = self.x.round() as i32;
-        let y = self.y.round() as i32;
+        let x = self.position.x.round() as i32;
+        let y = self.position.y.round() as i32;
         canvas.set_draw_color(Color::RGB(0xff, 0xff, 0xff));
         canvas.fill_rect(Rect::new(x, y, 8, 20)).map_err(err_msg)?;
         Ok(())
