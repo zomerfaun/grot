@@ -13,9 +13,6 @@ use sdl2::rect::Rect;
 use sdl2::render::{Canvas, RenderTarget};
 use sdl2::video::FullscreenType;
 
-// Run game state update logic at 60 frames per second
-const UPDATE_INTERVAL: f32 = 1.0 / 60.0;
-
 #[derive(Clone, Copy)]
 pub enum Tile {
     Empty,
@@ -87,9 +84,9 @@ impl Player {
         self.dx = -1.0;
     }
 
-    pub fn update(&mut self) {
-        self.x += self.dx * UPDATE_INTERVAL;
-        self.y += self.dy * UPDATE_INTERVAL;
+    pub fn update(&mut self, dt: f32) {
+        self.x += self.dx * dt;
+        self.y += self.dy * dt;
     }
 
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
@@ -144,13 +141,13 @@ fn run() -> Result<(), Error> {
             }
         }
 
-        let mut updates_performed = 0;
-        while last_update_time.elapsed().as_fractional_secs() as f32 >= UPDATE_INTERVAL {
-            player.update();
-            last_update_time = Instant::now();
-            updates_performed += 1;
-        }
-        eprintln!("Updates performed: {}", updates_performed);
+        // Use a simple variable timestep for updating the game state for now.
+        // See also https://gafferongames.com/post/fix_your_timestep/
+        let now = Instant::now();
+        let time_delta = (now - last_update_time).as_fractional_secs() as f32;
+        eprintln!("Time delta: {}", time_delta);
+        player.update(time_delta);
+        last_update_time = now;
         room.render(&mut canvas)?;
         player.render(&mut canvas)?;
         canvas.present();
