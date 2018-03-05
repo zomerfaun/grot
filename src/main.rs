@@ -81,7 +81,23 @@ impl Player {
     }
 
     pub fn left_pressed(&mut self) {
-        self.dx = -1.0;
+        self.dx = -60.0;
+    }
+
+    pub fn left_released(&mut self) {
+        if self.dx < 0.0 {
+            self.dx = 0.0;
+        }
+    }
+
+    pub fn right_pressed(&mut self) {
+        self.dx = 60.0;
+    }
+
+    pub fn right_released(&mut self) {
+        if self.dx > 0.0 {
+            self.dx = 0.0;
+        }
     }
 
     pub fn update(&mut self, dt: f32) {
@@ -137,6 +153,19 @@ fn run() -> Result<(), Error> {
                     repeat: false,
                     ..
                 } => player.left_pressed(),
+                Event::KeyUp {
+                    keycode: Some(Keycode::Left),
+                    ..
+                } => player.left_released(),
+                Event::KeyDown {
+                    keycode: Some(Keycode::Right),
+                    repeat: false,
+                    ..
+                } => player.right_pressed(),
+                Event::KeyUp {
+                    keycode: Some(Keycode::Right),
+                    ..
+                } => player.right_released(),
                 _ => eprintln!("Unhandled event of type {:?}", event),
             }
         }
