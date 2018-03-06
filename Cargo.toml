@@ -6,4 +6,4 @@ authors = ["Zomerfaun <zomerfaun@gmail.com>"]
 [dependencies]
 sdl2 = "0.31.0"
 failure = "0.1.1"
-floating-duration = "0.1.1"
+floating-duration = { git = "https://github.com/torkleyy/floating-duration.git" }
