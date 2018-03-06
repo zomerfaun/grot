@@ -3,10 +3,11 @@ extern crate floating_duration;
 extern crate sdl2;
 
 use std::ops::{AddAssign, Mul};
-use std::time::Instant;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use failure::{err_msg, Error};
-use floating_duration::TimeAsFloat;
+use floating_duration::{TimeAsFloat, TimeFormat};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -155,11 +156,17 @@ fn run() -> Result<(), Error> {
     let video = sdl.video().map_err(err_msg)?;
     let mut event_pump = sdl.event_pump().map_err(err_msg)?;
     let window = video.window("Grot", 640, 480).build()?;
-    let mut canvas = window.into_canvas().present_vsync().build()?;
+    let mut canvas = window.into_canvas().build()?;
 
-    let mut last_update_time = Instant::now();
     let room = Room::new(20, 10);
     let mut player = Player::new();
+
+    // Use a simple fixed 60 FPS timestep for updating the game state for now.
+    // See https://gafferongames.com/post/fix_your_timestep/ for more timestep algorithms.
+    let frame_duration = Duration::from_secs(1) / 60;
+    let time_delta = frame_duration.as_fractional_secs() as f32;
+    let mut frame_start_time = Instant::now();
+    let mut frame_deadline = frame_start_time + frame_duration;
 
     loop {
         for event in event_pump.poll_iter() {
@@ -206,16 +213,30 @@ fn run() -> Result<(), Error> {
             }
         }
 
-        // Use a simple variable timestep for updating the game state for now.
-        // See also https://gafferongames.com/post/fix_your_timestep/
-        let now = Instant::now();
-        let time_delta = (now - last_update_time).as_fractional_secs() as f32;
-        eprintln!("Time delta: {}", time_delta);
         player.update(time_delta);
-        last_update_time = now;
         room.render(&mut canvas)?;
         player.render(&mut canvas)?;
         canvas.present();
+
+        let now = Instant::now();
+        let process_duration = now - frame_start_time;
+        if now < frame_deadline {
+            let sleep_duration = frame_deadline - now;
+            eprintln!(
+                "Processing frame took {}, {} ahead of deadline",
+                TimeFormat(process_duration),
+                TimeFormat(sleep_duration)
+            );
+            thread::sleep(sleep_duration);
+        } else {
+            eprintln!(
+                "Processing frame took {}, {} behind deadline",
+                TimeFormat(process_duration),
+                TimeFormat(now - frame_deadline)
+            );
+        }
+        frame_start_time = Instant::now();
+        frame_deadline += frame_duration;
     }
 }
 
