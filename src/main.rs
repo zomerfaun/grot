@@ -232,11 +232,16 @@ fn run() -> Result<(), Error> {
             );
             thread::sleep(sleep_duration);
         } else {
+            let lateness = now - frame_deadline;
             trace!(
                 "Processing frame took {}, {} behind deadline",
                 TimeFormat(process_duration),
-                TimeFormat(now - frame_deadline)
+                TimeFormat(lateness)
             );
+            if lateness > Duration::from_secs(1) {
+                warn!("Frame is {} late; resetting deadline", TimeFormat(lateness));
+                frame_deadline = now;
+            }
         }
         frame_start_time = Instant::now();
         frame_deadline += frame_duration;
