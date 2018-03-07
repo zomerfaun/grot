@@ -1,5 +1,8 @@
 extern crate failure;
 extern crate floating_duration;
+#[macro_use]
+extern crate log;
+extern crate pretty_env_logger;
 extern crate sdl2;
 
 use std::ops::{AddAssign, Mul};
@@ -209,7 +212,7 @@ fn run() -> Result<(), Error> {
                     keycode: Some(Keycode::Right),
                     ..
                 } => player.right_released(),
-                _ => eprintln!("Unhandled event of type {:?}", event),
+                _ => debug!("Unhandled event of type {:?}", event),
             }
         }
 
@@ -222,14 +225,14 @@ fn run() -> Result<(), Error> {
         let process_duration = now - frame_start_time;
         if now < frame_deadline {
             let sleep_duration = frame_deadline - now;
-            eprintln!(
+            trace!(
                 "Processing frame took {}, {} ahead of deadline",
                 TimeFormat(process_duration),
                 TimeFormat(sleep_duration)
             );
             thread::sleep(sleep_duration);
         } else {
-            eprintln!(
+            trace!(
                 "Processing frame took {}, {} behind deadline",
                 TimeFormat(process_duration),
                 TimeFormat(now - frame_deadline)
@@ -241,6 +244,7 @@ fn run() -> Result<(), Error> {
 }
 
 fn main() {
+    pretty_env_logger::init();
     if let Err(error) = run() {
         eprintln!("Error: {}", error);
         for cause in error.causes().skip(1) {
