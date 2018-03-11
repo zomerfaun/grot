@@ -68,7 +68,7 @@ impl Room {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
@@ -103,7 +103,15 @@ impl Mul<f32> for Vec2 {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PlayerState {
+    Idle,
+    MovingLeft,
+    MovingRight,
+}
+
 pub struct Player {
+    state: PlayerState,
     position: Vec2,
     speed: Vec2,
     acceleration: Vec2,
@@ -112,6 +120,7 @@ pub struct Player {
 impl Player {
     pub fn new() -> Player {
         Player {
+            state: PlayerState::Idle,
             position: Vec2::new(10.0, 10.0),
             speed: Vec2::default(),
             acceleration: Vec2::default(),
@@ -119,30 +128,46 @@ impl Player {
     }
 
     pub fn left_pressed(&mut self) {
-        self.speed.x = -60.0;
+        self.state = PlayerState::MovingLeft;
+        debug!("Player state is now {:?}", self.state);
     }
 
     pub fn left_released(&mut self) {
-        if self.speed.x < 0.0 {
-            self.speed.x = 0.0;
+        if self.state == PlayerState::MovingLeft {
+            self.state = PlayerState::Idle;
+            debug!("Player state is now {:?}", self.state);
         }
     }
 
     pub fn right_pressed(&mut self) {
-        self.speed.x = 60.0;
+        self.state = PlayerState::MovingRight;
+        debug!("Player state is now {:?}", self.state);
     }
 
     pub fn right_released(&mut self) {
-        if self.speed.x > 0.0 {
-            self.speed.x = 0.0;
+        if self.state == PlayerState::MovingRight {
+            self.state = PlayerState::Idle;
+            debug!("Player state is now {:?}", self.state);
         }
     }
 
     pub fn update(&mut self, dt: f32) {
+        self.acceleration.x = match self.state {
+            PlayerState::Idle => -self.speed.x * 10.0,
+            PlayerState::MovingLeft => -250.0 - self.speed.x,
+            PlayerState::MovingRight => 250.0 - self.speed.x,
+        };
+
         // Semi-implicit Euler integration
         // See https://gafferongames.com/post/integration_basics/
         self.speed += self.acceleration * dt;
         self.position += self.speed * dt;
+        trace!(
+            "Player accel: {:?}, speed: {:?}, pos: {:?}",
+            self.acceleration,
+            self.speed,
+            self.position
+        );
     }
 
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
@@ -171,6 +196,7 @@ fn run() -> Result<(), Error> {
     let mut frame_start_time = Instant::now();
     let mut frame_deadline = frame_start_time + frame_duration;
 
+    debug!("Running main loop");
     loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -178,7 +204,11 @@ fn run() -> Result<(), Error> {
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => return Ok(()),
+                } => {
+                    debug!("Quitting");
+                    return Ok(());
+                }
+
                 Event::KeyDown {
                     keycode: Some(Keycode::F),
                     repeat: false,
@@ -186,14 +216,16 @@ fn run() -> Result<(), Error> {
                 } => {
                     // Toggle fullscreen state
                     let window = canvas.window_mut();
-                    let fullscreen_state = window.fullscreen_state();
+                    let new_fullscreen_state = match window.fullscreen_state() {
+                        FullscreenType::Off => FullscreenType::Desktop,
+                        _ => FullscreenType::Off,
+                    };
+                    debug!("New fullscreen state: {:?}", new_fullscreen_state);
                     window
-                        .set_fullscreen(match fullscreen_state {
-                            FullscreenType::Off => FullscreenType::Desktop,
-                            _ => FullscreenType::Off,
-                        })
+                        .set_fullscreen(new_fullscreen_state)
                         .map_err(err_msg)?;
                 }
+
                 Event::KeyDown {
                     keycode: Some(Keycode::Left),
                     repeat: false,
@@ -212,7 +244,8 @@ fn run() -> Result<(), Error> {
                     keycode: Some(Keycode::Right),
                     ..
                 } => player.right_released(),
-                _ => debug!("Unhandled event of type {:?}", event),
+
+                _ => trace!("Unhandled event of type {:?}", event),
             }
         }
 
