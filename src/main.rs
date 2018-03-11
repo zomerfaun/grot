@@ -152,10 +152,14 @@ impl Player {
     }
 
     pub fn update(&mut self, dt: f32) {
+        const TARGET_SPEED: f32 = 120.0;
+        const ACCELERATION_FACTOR: f32 = 5.0;
+        const DECELERATION_FACTOR: f32 = 10.0;
+
         self.acceleration.x = match self.state {
-            PlayerState::Idle => -self.speed.x * 10.0,
-            PlayerState::MovingLeft => -250.0 - self.speed.x,
-            PlayerState::MovingRight => 250.0 - self.speed.x,
+            PlayerState::Idle => -self.speed.x * DECELERATION_FACTOR,
+            PlayerState::MovingLeft => (-TARGET_SPEED - self.speed.x) * ACCELERATION_FACTOR,
+            PlayerState::MovingRight => (TARGET_SPEED - self.speed.x) * ACCELERATION_FACTOR,
         };
 
         // Semi-implicit Euler integration
