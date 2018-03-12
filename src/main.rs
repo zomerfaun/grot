@@ -152,15 +152,31 @@ impl Player {
     }
 
     pub fn update(&mut self, dt: f32) {
-        const TARGET_SPEED: f32 = 120.0;
-        const ACCELERATION_FACTOR: f32 = 5.0;
-        const DECELERATION_FACTOR: f32 = 10.0;
+        const MAX_SPEED: f32 = 120.0;
+        const ACCELERATION_FACTOR: f32 = 500.0;
 
-        self.acceleration.x = match self.state {
-            PlayerState::Idle => -self.speed.x * DECELERATION_FACTOR,
-            PlayerState::MovingLeft => (-TARGET_SPEED - self.speed.x) * ACCELERATION_FACTOR,
-            PlayerState::MovingRight => (TARGET_SPEED - self.speed.x) * ACCELERATION_FACTOR,
+        let target_speed = match self.state {
+            PlayerState::Idle => 0.0,
+            PlayerState::MovingLeft => -MAX_SPEED,
+            PlayerState::MovingRight => MAX_SPEED,
         };
+        self.acceleration.x = if self.speed.x != target_speed {
+            (target_speed - self.speed.x).signum() * ACCELERATION_FACTOR
+        } else {
+            0.0
+        };
+        // Make sure the acceleration doesn't make us overshoot the target
+        // speed: if the original speed was closer to the target speed than
+        // the new speed is going to be, recompute the acceleration so that
+        // the new speed will exactly equal the target speed instead.
+        if (self.speed.x - target_speed).abs()
+            < (self.speed.x + self.acceleration.x * dt - target_speed).abs()
+        {
+            // speed + accel * dt = target_speed
+            // accel * dt = target_speed - speed
+            // accel = (target_speed-speed)/dt
+            self.acceleration.x = (target_speed - self.speed.x) / dt;
+        }
 
         // Semi-implicit Euler integration
         // See https://gafferongames.com/post/integration_basics/
