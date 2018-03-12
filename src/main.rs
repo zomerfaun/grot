@@ -153,7 +153,8 @@ impl Player {
 
     pub fn update(&mut self, dt: f32) {
         const MAX_SPEED: f32 = 120.0;
-        const ACCELERATION_FACTOR: f32 = 500.0;
+        const ACCELERATION_TIME: f32 = 0.5;
+        const ACCELERATION_FACTOR: f32 = MAX_SPEED / ACCELERATION_TIME;
 
         let target_speed = match self.state {
             PlayerState::Idle => 0.0,
@@ -172,9 +173,6 @@ impl Player {
         if (self.speed.x - target_speed).abs()
             < (self.speed.x + self.acceleration.x * dt - target_speed).abs()
         {
-            // speed + accel * dt = target_speed
-            // accel * dt = target_speed - speed
-            // accel = (target_speed-speed)/dt
             self.acceleration.x = (target_speed - self.speed.x) / dt;
         }
 
