@@ -115,6 +115,7 @@ pub struct Player {
     position: Vec2,
     speed: Vec2,
     acceleration: Vec2,
+    start_time: Option<Instant>,
 }
 
 impl Player {
@@ -124,6 +125,7 @@ impl Player {
             position: Vec2::new(10.0, 10.0),
             speed: Vec2::default(),
             acceleration: Vec2::default(),
+            start_time: None,
         }
     }
 
@@ -166,6 +168,7 @@ impl Player {
         } else {
             0.0
         };
+
         // Make sure the acceleration doesn't make us overshoot the target
         // speed: if the original speed was closer to the target speed than
         // the new speed is going to be, recompute the acceleration so that
@@ -175,6 +178,8 @@ impl Player {
         {
             self.acceleration.x = (target_speed - self.speed.x) / dt;
         }
+
+        let old_speed = self.speed;
 
         // Semi-implicit Euler integration
         // See https://gafferongames.com/post/integration_basics/
@@ -186,6 +191,22 @@ impl Player {
             self.speed,
             self.position
         );
+
+        // I didn't believe my ACCELERATION_TIME constant above worked as intended
+        // (the acceleration time seemed longer than it should be to me), so I
+        // measured it. Luckily it is in fact working as intended.
+        if old_speed.x == 0.0 && self.speed.x != 0.0 && self.start_time.is_none() {
+            debug!("Acceleration start");
+            self.start_time = Some(Instant::now());
+        } else if let Some(start_time) = self.start_time {
+            if self.speed.x.abs() == MAX_SPEED {
+                debug!(
+                    "Reached max speed in {:#}",
+                    TimeFormat(start_time.elapsed())
+                );
+                self.start_time = None;
+            }
+        }
     }
 
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
@@ -194,6 +215,26 @@ impl Player {
         canvas.set_draw_color(Color::RGB(0xff, 0xff, 0xff));
         canvas.fill_rect(Rect::new(x, y, 8, 20)).map_err(err_msg)?;
         Ok(())
+    }
+}
+
+pub struct Model {
+    time_delta: f32,
+}
+
+impl Model {
+    pub fn new(fps: u32) -> Model {
+        let frame_duration = Duration::from_secs(1) / fps;
+        let time_delta = frame_duration.as_fractional_secs() as f32;
+        Model { time_delta }
+    }
+
+    pub fn input(&mut self, input: PlayerState) {}
+
+    pub fn update(&mut self, time_passed: Duration) {
+        // what happens with inputs
+        // when the game fps is higher than the model fps?
+        // answer: all inputs are processed at the start of a new model tick
     }
 }
 
@@ -206,6 +247,7 @@ fn run() -> Result<(), Error> {
 
     let room = Room::new(20, 10);
     let mut player = Player::new();
+    let mut model = Model::new(60);
 
     // Use a simple fixed 60 FPS timestep for updating the game state for now.
     // See https://gafferongames.com/post/fix_your_timestep/ for more timestep algorithms.
