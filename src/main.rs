@@ -15,6 +15,8 @@ use failure::{err_msg, Error};
 use floating_duration::TimeFormat;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::pixels::Color;
+use sdl2::render::BlendMode;
 use sdl2::video::FullscreenType;
 
 use model::Model;
@@ -27,7 +29,8 @@ pub fn run() -> Result<(), Error> {
     let window = video.window("Grot", 640, 480).build()?;
     let mut canvas = window.into_canvas().build()?;
 
-    let mut model = Model::new(60);
+    let mut model1 = Model::new(60);
+    let mut model2 = Model::new(20);
 
     let frame_duration = Duration::from_secs(1) / 60;
     let mut frame_start_time = Instant::now();
@@ -67,27 +70,45 @@ pub fn run() -> Result<(), Error> {
                     keycode: Some(Keycode::Left),
                     repeat: false,
                     ..
-                } => model.left_pressed(),
+                } => {
+                    model1.left_pressed();
+                    model2.left_pressed();
+                }
                 Event::KeyUp {
                     keycode: Some(Keycode::Left),
                     ..
-                } => model.left_released(),
+                } => {
+                    model1.left_released();
+                    model2.left_released();
+                }
                 Event::KeyDown {
                     keycode: Some(Keycode::Right),
                     repeat: false,
                     ..
-                } => model.right_pressed(),
+                } => {
+                    model1.right_pressed();
+                    model2.right_pressed();
+                }
                 Event::KeyUp {
                     keycode: Some(Keycode::Right),
                     ..
-                } => model.right_released(),
+                } => {
+                    model1.right_released();
+                    model2.right_released();
+                }
 
                 _ => trace!("Unhandled event of type {:?}", event),
             }
         }
 
-        model.update(frame_duration);
-        model.render(&mut canvas)?;
+        model1.update(frame_duration);
+        model2.update(frame_duration);
+
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
+        canvas.clear();
+        canvas.set_blend_mode(BlendMode::Blend);
+        model1.render(&mut canvas)?;
+        model2.render(&mut canvas)?;
         canvas.present();
 
         let now = Instant::now();

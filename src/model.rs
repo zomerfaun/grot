@@ -165,7 +165,7 @@ impl Player {
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
         let x = self.position.x.round() as i32;
         let y = self.position.y.round() as i32;
-        canvas.set_draw_color(Color::RGB(0xff, 0xff, 0xff));
+        canvas.set_draw_color(Color::RGBA(0xFF, 0xFF, 0xFF, 0x80));
         canvas.fill_rect(Rect::new(x, y, 8, 20)).map_err(err_msg)?;
         Ok(())
     }
@@ -204,14 +204,12 @@ impl Room {
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
         let tile_size = 16;
         canvas.set_logical_size(self.width * tile_size, self.height * tile_size)?;
-        canvas.set_draw_color(Color::RGB(0x20, 0x20, 0x20));
-        canvas.clear();
         for (i, tile) in self.tiles.iter().enumerate() {
             let x = i as i32 % self.width as i32 * tile_size as i32;
             let y = i as i32 / self.width as i32 * tile_size as i32;
             let tile_color = match *tile {
-                Tile::Empty => Color::RGB(0x00, 0x00, 0x00),
-                Tile::Filled => Color::RGB(0x80, 0x80, 0x80),
+                Tile::Empty => Color::RGBA(0x00, 0x00, 0x00, 0x00),
+                Tile::Filled => Color::RGBA(0x80, 0x80, 0x80, 0xFF),
             };
             canvas.set_draw_color(tile_color);
             canvas
