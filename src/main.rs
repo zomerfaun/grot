@@ -110,6 +110,7 @@ pub enum PlayerState {
     MovingRight,
 }
 
+#[derive(Clone, Copy)]
 pub struct Player {
     state: PlayerState,
     position: Vec2,
@@ -129,33 +130,18 @@ impl Player {
         }
     }
 
-    pub fn left_pressed(&mut self) {
-        self.state = PlayerState::MovingLeft;
+    pub fn state(&self) -> PlayerState {
+        self.state
+    }
+
+    pub fn set_state(&mut self, state: PlayerState) {
+        self.state = state;
         debug!("Player state is now {:?}", self.state);
-    }
-
-    pub fn left_released(&mut self) {
-        if self.state == PlayerState::MovingLeft {
-            self.state = PlayerState::Idle;
-            debug!("Player state is now {:?}", self.state);
-        }
-    }
-
-    pub fn right_pressed(&mut self) {
-        self.state = PlayerState::MovingRight;
-        debug!("Player state is now {:?}", self.state);
-    }
-
-    pub fn right_released(&mut self) {
-        if self.state == PlayerState::MovingRight {
-            self.state = PlayerState::Idle;
-            debug!("Player state is now {:?}", self.state);
-        }
     }
 
     pub fn update(&mut self, dt: f32) {
-        const MAX_SPEED: f32 = 120.0;
-        const ACCELERATION_TIME: f32 = 0.5;
+        const MAX_SPEED: f32 = 120.0; // Maximum speed, in pixels per second
+        const ACCELERATION_TIME: f32 = 0.2; // Time to accelerate from 0 to `MAX_SPEED`, in seconds
         const ACCELERATION_FACTOR: f32 = MAX_SPEED / ACCELERATION_TIME;
 
         let target_speed = match self.state {
@@ -169,13 +155,13 @@ impl Player {
             0.0
         };
 
-        // Make sure the acceleration doesn't make us overshoot the target
-        // speed: if the original speed was closer to the target speed than
-        // the new speed is going to be, recompute the acceleration so that
-        // the new speed will exactly equal the target speed instead.
-        if (self.speed.x - target_speed).abs()
-            < (self.speed.x + self.acceleration.x * dt - target_speed).abs()
+        // If the new speed would overshoot the target speed, recompute the
+        // acceleration so that the new speed will exactly equal the target
+        // speed instead.
+        if (self.speed.x - target_speed).signum()
+            != (self.speed.x + self.acceleration.x * dt - target_speed).signum()
         {
+            debug!("Correcting acceleration because of target speed overshoot");
             self.acceleration.x = (target_speed - self.speed.x) / dt;
         }
 
@@ -218,23 +204,68 @@ impl Player {
     }
 }
 
+/// Game model.
+/// 
+/// The `Model` can update at a stable frame rate that is independent from
+/// that of the main loop, and render at any time by interpolating object
+/// positions.
+/// Based on a method from <https://gafferongames.com/post/fix_your_timestep/>.
 pub struct Model {
-    time_delta: f32,
+    frame_duration: Duration,
+    time_since_last_tick: Duration,
+    player: Player,
+    old_player: Player,
 }
 
 impl Model {
     pub fn new(fps: u32) -> Model {
-        let frame_duration = Duration::from_secs(1) / fps;
-        let time_delta = frame_duration.as_fractional_secs() as f32;
-        Model { time_delta }
+        let player = Player::new();
+        Model {
+            frame_duration: Duration::from_secs(1) / fps,
+            time_since_last_tick: Duration::default(),
+            player,
+            old_player: player,
+        }
     }
 
-    pub fn input(&mut self, input: PlayerState) {}
+    pub fn left_pressed(&mut self) {
+        self.player.set_state(PlayerState::MovingLeft);
+    }
+
+    pub fn left_released(&mut self) {
+        if self.player.state() == PlayerState::MovingLeft {
+            self.player.set_state(PlayerState::Idle);
+        }
+    }
+
+    pub fn right_pressed(&mut self) {
+        self.player.set_state(PlayerState::MovingRight);
+    }
+
+    pub fn right_released(&mut self) {
+        if self.player.state() == PlayerState::MovingRight {
+            self.player.set_state(PlayerState::Idle);
+        }
+    }
 
     pub fn update(&mut self, time_passed: Duration) {
         // what happens with inputs
         // when the game fps is higher than the model fps?
-        // answer: all inputs are processed at the start of a new model tick
+        // answer: all inputs SHOULD BE processed at the start of a new model tick
+        self.time_since_last_tick += time_passed;
+        while self.time_since_last_tick >= self.frame_duration {
+            self.time_since_last_tick -= self.frame_duration;
+            let time_delta = self.frame_duration.as_fractional_secs() as f32;
+            self.old_player = self.player;
+            self.player.update(time_delta);
+        }
+    }
+
+    pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
+        let mut render_player = self.old_player;
+        let time_delta = self.time_since_last_tick.as_fractional_secs() as f32;
+        render_player.position += self.player.speed * time_delta;
+        render_player.render(canvas)
     }
 }
 
@@ -246,13 +277,9 @@ fn run() -> Result<(), Error> {
     let mut canvas = window.into_canvas().build()?;
 
     let room = Room::new(20, 10);
-    let mut player = Player::new();
     let mut model = Model::new(60);
 
-    // Use a simple fixed 60 FPS timestep for updating the game state for now.
-    // See https://gafferongames.com/post/fix_your_timestep/ for more timestep algorithms.
     let frame_duration = Duration::from_secs(1) / 60;
-    let time_delta = frame_duration.as_fractional_secs() as f32;
     let mut frame_start_time = Instant::now();
     let mut frame_deadline = frame_start_time + frame_duration;
 
@@ -290,28 +317,28 @@ fn run() -> Result<(), Error> {
                     keycode: Some(Keycode::Left),
                     repeat: false,
                     ..
-                } => player.left_pressed(),
+                } => model.left_pressed(),
                 Event::KeyUp {
                     keycode: Some(Keycode::Left),
                     ..
-                } => player.left_released(),
+                } => model.left_released(),
                 Event::KeyDown {
                     keycode: Some(Keycode::Right),
                     repeat: false,
                     ..
-                } => player.right_pressed(),
+                } => model.right_pressed(),
                 Event::KeyUp {
                     keycode: Some(Keycode::Right),
                     ..
-                } => player.right_released(),
+                } => model.right_released(),
 
                 _ => trace!("Unhandled event of type {:?}", event),
             }
         }
 
-        player.update(time_delta);
+        model.update(frame_duration);
         room.render(&mut canvas)?;
-        player.render(&mut canvas)?;
+        model.render(&mut canvas)?;
         canvas.present();
 
         let now = Instant::now();
