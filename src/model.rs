@@ -9,7 +9,7 @@ use sdl2::render::{Canvas, RenderTarget};
 use math::Vec2;
 
 /// Game model.
-/// 
+///
 /// The `Model` can update at a stable frame rate that is independent from
 /// that of the main loop, and render at any time by interpolating object
 /// positions.
@@ -19,6 +19,7 @@ pub struct Model {
     time_since_last_tick: Duration,
     player: Player,
     old_player: Player,
+    room: Room,
 }
 
 impl Model {
@@ -29,6 +30,7 @@ impl Model {
             time_since_last_tick: Duration::default(),
             player,
             old_player: player,
+            room: Room::new(20, 10),
         }
     }
 
@@ -68,8 +70,10 @@ impl Model {
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
         let mut render_player = self.old_player;
         let time_delta = self.time_since_last_tick.as_fractional_secs() as f32;
+        self.room.render(canvas)?;
         render_player.position += self.player.speed * time_delta;
-        render_player.render(canvas)
+        render_player.render(canvas)?;
+        Ok(())
     }
 }
 
@@ -172,4 +176,54 @@ pub enum PlayerState {
     Idle,
     MovingLeft,
     MovingRight,
+}
+
+pub struct Room {
+    width: u32,
+    height: u32,
+    tiles: Vec<Tile>,
+}
+
+impl Room {
+    pub fn new(width: u32, height: u32) -> Room {
+        // Construct an empty roomsworth of tiles
+        let mut tiles = vec![Tile::Empty; (width * height) as usize];
+
+        // Add a floor
+        for x in 0..width as usize {
+            tiles[(width * (height - 1)) as usize + x] = Tile::Filled;
+        }
+
+        Room {
+            width,
+            height,
+            tiles,
+        }
+    }
+
+    pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
+        let tile_size = 16;
+        canvas.set_logical_size(self.width * tile_size, self.height * tile_size)?;
+        canvas.set_draw_color(Color::RGB(0x20, 0x20, 0x20));
+        canvas.clear();
+        for (i, tile) in self.tiles.iter().enumerate() {
+            let x = i as i32 % self.width as i32 * tile_size as i32;
+            let y = i as i32 / self.width as i32 * tile_size as i32;
+            let tile_color = match *tile {
+                Tile::Empty => Color::RGB(0x00, 0x00, 0x00),
+                Tile::Filled => Color::RGB(0x80, 0x80, 0x80),
+            };
+            canvas.set_draw_color(tile_color);
+            canvas
+                .fill_rect(Rect::new(x, y, tile_size, tile_size))
+                .map_err(err_msg)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum Tile {
+    Empty,
+    Filled,
 }
