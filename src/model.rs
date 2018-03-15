@@ -109,8 +109,9 @@ impl Player {
     pub fn update(&mut self, dt: f32) {
         const MAX_SPEED: f32 = 120.0; // Maximum speed, in pixels per second
         const ACCELERATION_TIME: f32 = 0.2; // Time to accelerate from 0 to `MAX_SPEED`, in seconds
-        const ACCELERATION_FACTOR: f32 = MAX_SPEED / ACCELERATION_TIME;
+        const ACCELERATION_FACTOR: f32 = 5.0;//MAX_SPEED / ACCELERATION_TIME;
 
+        /*
         let target_speed = match self.state {
             PlayerState::Idle => 0.0,
             PlayerState::MovingLeft => -MAX_SPEED,
@@ -131,6 +132,12 @@ impl Player {
             debug!("Correcting acceleration because of target speed overshoot");
             self.acceleration.x = (target_speed - self.speed.x) / dt;
         }
+        */
+        self.acceleration.x = match self.state {
+            PlayerState::Idle => -self.speed.x * ACCELERATION_FACTOR,
+            PlayerState::MovingLeft => (-MAX_SPEED - self.speed.x) * ACCELERATION_FACTOR,
+            PlayerState::MovingRight => (MAX_SPEED - self.speed.x) * ACCELERATION_FACTOR,
+        };
 
         let old_speed = self.speed;
 

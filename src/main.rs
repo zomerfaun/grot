@@ -30,7 +30,7 @@ pub fn run() -> Result<(), Error> {
     let mut canvas = window.into_canvas().build()?;
 
     let mut model1 = Model::new(60);
-    let mut model2 = Model::new(20);
+    let mut model2 = Model::new(1200);
 
     let frame_duration = Duration::from_secs(1) / 60;
     let mut frame_start_time = Instant::now();
