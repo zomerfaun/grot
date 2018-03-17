@@ -27,10 +27,9 @@ pub struct Options {
     #[structopt(short = "f", long = "fullscreen", help = "Run fullscreen at desktop resolution")]
     pub fullscreen: bool,
     #[structopt(short = "F", long = "framerate", default_value = "60",
-                help = "Run game at <fps> frames per second, or 0 for unlimited")]
+                help = "Limit frame rate to at most <fps>, or 0 for unlimited")]
     pub fps: u32,
-    #[structopt(short = "v", long = "vsync", help = "Enable vsync")]
-    pub vsync: bool,
+    #[structopt(short = "v", long = "vsync", help = "Enable vsync")] pub vsync: bool,
 }
 
 /// Runs the game.
@@ -50,7 +49,7 @@ pub fn run(options: &Options) -> Result<(), Error> {
     }
     let mut canvas = canvas_builder.build()?;
 
-    let mut model = Model::new(60);
+    let mut model = Model::new(150);
 
     let limit_fps = options.fps != 0;
     let frame_duration = Duration::from_secs(1)
@@ -58,9 +57,7 @@ pub fn run(options: &Options) -> Result<(), Error> {
         .unwrap_or_default();
 
     debug!("Running main loop");
-    let game_start_time = Instant::now();
-    let mut previous_frame_update = game_start_time;
-    let mut frame_deadline = game_start_time + frame_duration;
+    let mut last_update_time = Instant::now();
     loop {
         trace!("Start new frame");
         let frame_started = Instant::now();
@@ -115,41 +112,28 @@ pub fn run(options: &Options) -> Result<(), Error> {
             }
         }
 
-        let time_since_update = previous_frame_update.elapsed();
-        previous_frame_update += time_since_update;
-        let model_update_time = if limit_fps {
-            frame_duration
-        } else {
-            time_since_update
-        };
+        // Update model with the time passed since the previous update
+        let update_time = Instant::now();
+        let time_passed = update_time - last_update_time;
+        trace!("Time passed for model update: {}", TimeFormat(time_passed));
+        model.update(time_passed);
+        last_update_time = update_time;
 
-        trace!(
-            "Time passed for model update: {}",
-            TimeFormat(model_update_time)
-        );
-        model.update(model_update_time);
         model.render(&mut canvas)?;
         canvas.present();
 
         let frame_finished = Instant::now();
-        trace!(
-            "Processing frame took {}",
-            TimeFormat(frame_finished - frame_started)
-        );
+        let frame_process_time = frame_finished - frame_started;
+        trace!("Processing frame took {}", TimeFormat(frame_process_time));
         if limit_fps {
-            if frame_finished < frame_deadline {
-                let sleep_duration = frame_deadline - frame_finished;
+            if frame_process_time < frame_duration {
+                let sleep_duration = frame_duration - frame_process_time;
                 trace!("Frame is {} early; sleeping", TimeFormat(sleep_duration));
                 thread::sleep(sleep_duration);
             } else {
-                let lateness = frame_finished - frame_deadline;
+                let lateness = frame_process_time - frame_duration;
                 trace!("Frame is {} late", TimeFormat(lateness));
-                if lateness > Duration::from_secs(1) {
-                    warn!("Frame is {} late; resetting deadline", TimeFormat(lateness));
-                    frame_deadline = frame_finished;
-                }
             }
-            frame_deadline += frame_duration;
         }
     }
 }
