@@ -4,6 +4,8 @@ extern crate floating_duration;
 extern crate log;
 extern crate pretty_env_logger;
 extern crate sdl2;
+#[macro_use]
+extern crate structopt;
 
 pub mod math;
 pub mod model;
@@ -16,25 +18,46 @@ use floating_duration::TimeFormat;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::video::FullscreenType;
+use structopt::StructOpt;
 
 use model::Model;
 
+#[derive(Debug, StructOpt)]
+pub struct Options {
+    #[structopt(short = "f", long = "fullscreen", help = "Run fullscreen at desktop resolution")]
+    pub fullscreen: bool,
+    #[structopt(short = "F", long = "framerate", default_value = "60",
+                help = "Run game at <fps> frames per second, or 0 for unlimited")]
+    pub fps: u32,
+}
+
 /// Runs the game.
-pub fn run() -> Result<(), Error> {
+pub fn run(options: &Options) -> Result<(), Error> {
+    debug!("Running game with {:?}", options);
     let sdl = sdl2::init().map_err(err_msg)?;
     let video = sdl.video().map_err(err_msg)?;
     let mut event_pump = sdl.event_pump().map_err(err_msg)?;
-    let window = video.window("Grot", 640, 480).build()?;
+    let mut window_builder = video.window("Grot", 640, 480);
+    if options.fullscreen {
+        window_builder.fullscreen_desktop();
+    }
+    let window = window_builder.build()?;
     let mut canvas = window.into_canvas().build()?;
 
     let mut model = Model::new(60);
 
-    let frame_duration = Duration::from_secs(1) / 60;
-    let mut frame_start_time = Instant::now();
-    let mut frame_deadline = frame_start_time + frame_duration;
+    let limit_fps = options.fps != 0;
+    let frame_duration = Duration::from_secs(1)
+        .checked_div(options.fps)
+        .unwrap_or_default();
 
     debug!("Running main loop");
+    let game_start_time = Instant::now();
+    let mut previous_frame_update = game_start_time;
+    let mut frame_deadline = game_start_time + frame_duration;
     loop {
+        trace!("Start new frame");
+        let frame_started = Instant::now();
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -86,40 +109,49 @@ pub fn run() -> Result<(), Error> {
             }
         }
 
-        model.update(frame_duration);
+        let time_since_update = previous_frame_update.elapsed();
+        previous_frame_update += time_since_update;
+        let model_update_time = if limit_fps {
+            frame_duration
+        } else {
+            time_since_update
+        };
+
+        trace!(
+            "Time passed for model update: {}",
+            TimeFormat(model_update_time)
+        );
+        model.update(model_update_time);
         model.render(&mut canvas)?;
         canvas.present();
 
-        let now = Instant::now();
-        let process_duration = now - frame_start_time;
-        if now < frame_deadline {
-            let sleep_duration = frame_deadline - now;
-            trace!(
-                "Processing frame took {}, {} ahead of deadline",
-                TimeFormat(process_duration),
-                TimeFormat(sleep_duration)
-            );
-            thread::sleep(sleep_duration);
-        } else {
-            let lateness = now - frame_deadline;
-            trace!(
-                "Processing frame took {}, {} behind deadline",
-                TimeFormat(process_duration),
-                TimeFormat(lateness)
-            );
-            if lateness > Duration::from_secs(1) {
-                warn!("Frame is {} late; resetting deadline", TimeFormat(lateness));
-                frame_deadline = now;
+        let frame_finished = Instant::now();
+        trace!(
+            "Processing frame took {}",
+            TimeFormat(frame_finished - frame_started)
+        );
+        if limit_fps {
+            if frame_finished < frame_deadline {
+                let sleep_duration = frame_deadline - frame_finished;
+                trace!("Frame is {} early; sleeping", TimeFormat(sleep_duration));
+                thread::sleep(sleep_duration);
+            } else {
+                let lateness = frame_finished - frame_deadline;
+                trace!("Frame is {} late", TimeFormat(lateness));
+                if lateness > Duration::from_secs(1) {
+                    warn!("Frame is {} late; resetting deadline", TimeFormat(lateness));
+                    frame_deadline = frame_finished;
+                }
             }
+            frame_deadline += frame_duration;
         }
-        frame_start_time = Instant::now();
-        frame_deadline += frame_duration;
     }
 }
 
 fn main() {
     pretty_env_logger::init();
-    if let Err(error) = run() {
+    let options = Options::from_args();
+    if let Err(error) = run(&options) {
         eprintln!("Error: {}", error);
         for cause in error.causes().skip(1) {
             eprintln!("Cause: {}", cause);
