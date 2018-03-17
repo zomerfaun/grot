@@ -1,14 +1,17 @@
 export RUST_BACKTRACE="1"
 export RUST_LOG="grot=debug"
 
-@run:
-    cargo run
+run +args="":
+    cargo run -- {{args}}
 
-@trace:
-    RUST_LOG="grot=trace" cargo run
+trace +args="":
+    RUST_LOG="grot=trace" cargo run -- {{args}}
 
-@trance:
+help:
+    cargo run -- --help
+
+trance:
     mpv http://tunein.com/radio/radiOzora-Psy-s201024
 
-@chill:
+chill:
     mpv https://tunein.com/radio/radiOzora-Chill-channel-s201021
