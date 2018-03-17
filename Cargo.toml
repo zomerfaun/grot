@@ -9,3 +9,4 @@ failure = "0.1.1"
 floating-duration = { git = "https://github.com/torkleyy/floating-duration.git" }
 pretty_env_logger = "0.2.2"
 log = "0.4.1"
+structopt = "0.2.5"
