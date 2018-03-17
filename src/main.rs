@@ -29,6 +29,8 @@ pub struct Options {
     #[structopt(short = "F", long = "framerate", default_value = "60",
                 help = "Run game at <fps> frames per second, or 0 for unlimited")]
     pub fps: u32,
+    #[structopt(short = "v", long = "vsync", help = "Enable vsync")]
+    pub vsync: bool,
 }
 
 /// Runs the game.
@@ -42,7 +44,11 @@ pub fn run(options: &Options) -> Result<(), Error> {
         window_builder.fullscreen_desktop();
     }
     let window = window_builder.build()?;
-    let mut canvas = window.into_canvas().build()?;
+    let mut canvas_builder = window.into_canvas();
+    if options.vsync {
+        canvas_builder = canvas_builder.present_vsync();
+    }
+    let mut canvas = canvas_builder.build()?;
 
     let mut model = Model::new(60);
 
