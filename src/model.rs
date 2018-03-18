@@ -33,22 +33,24 @@ impl Model {
     }
 
     pub fn left_pressed(&mut self) {
-        self.player.set_state(PlayerHorizState::MovingLeft);
+        self.player.set_horiz_state(PlayerHorizState::MovingLeft);
     }
 
     pub fn left_released(&mut self) {
         if self.player.state() == PlayerHorizState::MovingLeft {
-            self.player.set_state(PlayerHorizState::Idle);
+            self.player
+                .set_horiz_state(PlayerHorizState::StopMovingLeft);
         }
     }
 
     pub fn right_pressed(&mut self) {
-        self.player.set_state(PlayerHorizState::MovingRight);
+        self.player.set_horiz_state(PlayerHorizState::MovingRight);
     }
 
     pub fn right_released(&mut self) {
         if self.player.state() == PlayerHorizState::MovingRight {
-            self.player.set_state(PlayerHorizState::Idle);
+            self.player
+                .set_horiz_state(PlayerHorizState::StopMovingRight);
         }
     }
 
@@ -102,7 +104,10 @@ impl Player {
         self.horiz_state
     }
 
-    pub fn set_state(&mut self, state: PlayerHorizState) {
+    pub fn set_horiz_state(&mut self, state: PlayerHorizState) {
+        if self.horiz_state == state {
+            return;
+        }
         self.horiz_state = state;
         debug!("Player state is now {:?}", self.horiz_state);
     }
@@ -111,14 +116,18 @@ impl Player {
         const WALK_SPEED: f32 = 120.0; // Maximum walk speed, in pixels per second
         const WALK_TIME: f32 = 0.2; // Time to go from 0 to `WALK_SPEED`, in seconds
         const WALK_ACCEL: f32 = WALK_SPEED / WALK_TIME;
+        const STOP_TIME: f32 = 0.3; // Time to go from `WALK_SPEED` back to 0
+        const STOP_ACCEL: f32 = WALK_SPEED / STOP_TIME;
         const FALL_SPEED: f32 = 240.0;
-        const FALL_TIME: f32 = 2.0;
+        const FALL_TIME: f32 = 128.0;
         const FALL_ACCEL: f32 = FALL_SPEED / FALL_TIME;
 
-        let xaccel = match self.horiz_state {
-            PlayerHorizState::Idle => 0.0,
-            PlayerHorizState::MovingLeft => -WALK_ACCEL,
-            PlayerHorizState::MovingRight => WALK_ACCEL,
+        let (xaccel, xminspeed, xmaxspeed) = match self.horiz_state {
+            PlayerHorizState::Idle => (0.0, 0.0, 0.0),
+            PlayerHorizState::MovingLeft => (-WALK_ACCEL, -WALK_SPEED, WALK_SPEED),
+            PlayerHorizState::MovingRight => (WALK_ACCEL, -WALK_SPEED, WALK_SPEED),
+            PlayerHorizState::StopMovingLeft => (STOP_ACCEL, -WALK_SPEED, 0.0),
+            PlayerHorizState::StopMovingRight => (-STOP_ACCEL, 0.0, WALK_SPEED),
         };
         let yaccel = match self.vert_state {
             PlayerVertState::Standing => 0.0,
@@ -126,12 +135,17 @@ impl Player {
         };
 
         // Calculate speed based on acceleration
-        self.xspeed += xaccel * dt;
-        self.yspeed += yaccel * dt;
+        self.xspeed = (self.xspeed + xaccel * dt).min(xmaxspeed).max(xminspeed);
+        self.yspeed = (self.yspeed + yaccel * dt).min(FALL_SPEED);
 
         // Calculate position based on speed
         self.xpos += self.xspeed * dt;
         self.ypos += self.yspeed * dt;
+
+        // Change state to idle when player has stopped moving
+        if self.xspeed == 0.0 {
+            self.set_horiz_state(PlayerHorizState::Idle);
+        }
     }
 
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
@@ -148,6 +162,8 @@ pub enum PlayerHorizState {
     Idle,
     MovingLeft,
     MovingRight,
+    StopMovingLeft,
+    StopMovingRight,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
