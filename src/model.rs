@@ -86,6 +86,8 @@ pub struct Player {
     ypos: f32,
     xspeed: f32,
     yspeed: f32,
+    width: u32,
+    height: u32,
 }
 
 impl Player {
@@ -97,6 +99,8 @@ impl Player {
             ypos: 10.0,
             xspeed: 0.0,
             yspeed: 0.0,
+            width: 8,
+            height: 20,
         }
     }
 
@@ -109,7 +113,15 @@ impl Player {
             return;
         }
         self.horiz_state = state;
-        debug!("Player state is now {:?}", self.horiz_state);
+        debug!("Player horiz state is now {:?}", self.horiz_state);
+    }
+
+    pub fn set_vert_state(&mut self, state: PlayerVertState) {
+        if self.vert_state == state {
+            return;
+        }
+        self.vert_state = state;
+        debug!("Player vert state is now {:?}", self.vert_state);
     }
 
     pub fn update(&mut self, dt: f32) {
@@ -119,7 +131,7 @@ impl Player {
         const STOP_TIME: f32 = 0.3; // Time to go from `WALK_SPEED` back to 0
         const STOP_ACCEL: f32 = WALK_SPEED / STOP_TIME;
         const FALL_SPEED: f32 = 240.0;
-        const FALL_TIME: f32 = 128.0;
+        const FALL_TIME: f32 = 2.0;
         const FALL_ACCEL: f32 = FALL_SPEED / FALL_TIME;
 
         let (xaccel, xminspeed, xmaxspeed) = match self.horiz_state {
@@ -134,11 +146,11 @@ impl Player {
             PlayerVertState::Falling => FALL_ACCEL,
         };
 
-        // Calculate speed based on acceleration
+        // Calculate new speed based on acceleration
         self.xspeed = (self.xspeed + xaccel * dt).min(xmaxspeed).max(xminspeed);
         self.yspeed = (self.yspeed + yaccel * dt).min(FALL_SPEED);
 
-        // Calculate position based on speed
+        // Calculate new position based on speed
         self.xpos += self.xspeed * dt;
         self.ypos += self.yspeed * dt;
 
@@ -146,13 +158,21 @@ impl Player {
         if self.xspeed == 0.0 {
             self.set_horiz_state(PlayerHorizState::Idle);
         }
+
+        // "Collision detection"
+        let floor_height = 160.0 - 16.0;
+        if self.ypos + self.height as f32 > floor_height {
+            self.set_vert_state(PlayerVertState::Standing);
+            self.yspeed = 0.0;
+            self.ypos = floor_height - self.height as f32;
+        }
     }
 
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
         let x = self.xpos.round() as i32;
         let y = self.ypos.round() as i32;
         canvas.set_draw_color(Color::RGB(0xff, 0xff, 0xff));
-        canvas.fill_rect(Rect::new(x, y, 8, 20)).map_err(err_msg)?;
+        canvas.fill_rect(Rect::new(x, y, self.width, self.height)).map_err(err_msg)?;
         Ok(())
     }
 }
