@@ -1,8 +1,8 @@
+extern crate env_logger;
 extern crate failure;
 extern crate floating_duration;
 #[macro_use]
 extern crate log;
-extern crate pretty_env_logger;
 extern crate sdl2;
 #[macro_use]
 extern crate structopt;
@@ -138,7 +138,7 @@ pub fn run(options: &Options) -> Result<(), Error> {
 }
 
 fn main() {
-    pretty_env_logger::init();
+    env_logger::init();
     let options = Options::from_args();
     if let Err(error) = run(&options) {
         eprintln!("Error: {}", error);
