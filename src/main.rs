@@ -63,6 +63,7 @@ pub fn run(options: &Options) -> Result<(), Error> {
         let frame_started = Instant::now();
         for event in event_pump.poll_iter() {
             match event {
+                // Close window or press Escape to quit
                 Event::Quit { .. }
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
@@ -72,12 +73,12 @@ pub fn run(options: &Options) -> Result<(), Error> {
                     return Ok(());
                 }
 
+                // Toggle fullscreen state with F
                 Event::KeyDown {
                     keycode: Some(Keycode::F),
                     repeat: false,
                     ..
                 } => {
-                    // Toggle fullscreen state
                     let window = canvas.window_mut();
                     let new_fullscreen_state = match window.fullscreen_state() {
                         FullscreenType::Off => FullscreenType::Desktop,
@@ -89,33 +90,18 @@ pub fn run(options: &Options) -> Result<(), Error> {
                         .map_err(err_msg)?;
                 }
 
+                // Any other keypress goes to the model
                 Event::KeyDown {
-                    keycode: Some(Keycode::Left),
+                    keycode: Some(keycode),
                     repeat: false,
                     ..
-                } => model.left_pressed(),
+                } => model.key_pressed(keycode),
+
+                // Any key release goes to the model
                 Event::KeyUp {
-                    keycode: Some(Keycode::Left),
+                    keycode: Some(keycode),
                     ..
-                } => model.left_released(),
-                Event::KeyDown {
-                    keycode: Some(Keycode::Right),
-                    repeat: false,
-                    ..
-                } => model.right_pressed(),
-                Event::KeyUp {
-                    keycode: Some(Keycode::Right),
-                    ..
-                } => model.right_released(),
-                Event::KeyDown {
-                    keycode: Some(Keycode::Up),
-                    repeat: false,
-                    ..
-                } => model.up_pressed(),
-                Event::KeyUp {
-                    keycode: Some(Keycode::Up),
-                    ..
-                } => model.up_released(),
+                } => model.key_released(keycode),
 
                 _ => trace!("Unhandled event of type {:?}", event),
             }

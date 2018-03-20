@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use failure::{err_msg, Error};
 use floating_duration::TimeAsFloat;
+use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect as SdlRect;
 use sdl2::render::{Canvas, RenderTarget};
@@ -34,37 +35,31 @@ impl Model {
         }
     }
 
-    pub fn left_pressed(&mut self) {
-        self.player.set_horiz_state(PlayerHorizState::MovingLeft);
-    }
-
-    pub fn left_released(&mut self) {
-        if self.player.horiz_state() == PlayerHorizState::MovingLeft {
-            self.player
-                .set_horiz_state(PlayerHorizState::StopMovingLeft);
+    pub fn key_pressed(&mut self, keycode: Keycode) {
+        match keycode {
+            Keycode::Left => self.player.set_horiz_state(PlayerHorizState::MovingLeft),
+            Keycode::Right => self.player.set_horiz_state(PlayerHorizState::MovingRight),
+            Keycode::Up if self.player.vert_state() == PlayerVertState::Standing => {
+                self.player.set_vert_state(PlayerVertState::Jumping)
+            }
+            _ => (),
         }
     }
 
-    pub fn right_pressed(&mut self) {
-        self.player.set_horiz_state(PlayerHorizState::MovingRight);
-    }
-
-    pub fn right_released(&mut self) {
-        if self.player.horiz_state() == PlayerHorizState::MovingRight {
-            self.player
-                .set_horiz_state(PlayerHorizState::StopMovingRight);
-        }
-    }
-
-    pub fn up_pressed(&mut self) {
-        if self.player.vert_state() == PlayerVertState::Standing {
-            self.player.set_vert_state(PlayerVertState::Jumping);
-        }
-    }
-
-    pub fn up_released(&mut self) {
-        if self.player.vert_state() == PlayerVertState::Jumping {
-            self.player.set_vert_state(PlayerVertState::Falling);
+    pub fn key_released(&mut self, keycode: Keycode) {
+        match keycode {
+            Keycode::Left if self.player.horiz_state() == PlayerHorizState::MovingLeft => {
+                self.player
+                    .set_horiz_state(PlayerHorizState::StopMovingLeft)
+            }
+            Keycode::Right if self.player.horiz_state() == PlayerHorizState::MovingRight => {
+                self.player
+                    .set_horiz_state(PlayerHorizState::StopMovingRight)
+            }
+            Keycode::Up if self.player.vert_state() == PlayerVertState::Jumping => {
+                self.player.set_vert_state(PlayerVertState::Falling)
+            }
+            _ => (),
         }
     }
 
