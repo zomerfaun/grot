@@ -98,8 +98,8 @@ pub struct Player {
     ypos: f32,
     xspeed: f32,
     yspeed: f32,
-    width: u32,
-    height: u32,
+    width: f32,
+    height: f32,
 }
 
 impl Player {
@@ -111,8 +111,8 @@ impl Player {
             ypos: 10.0,
             xspeed: 0.0,
             yspeed: 0.0,
-            width: 8,
-            height: 20,
+            width: 8.0,
+            height: 20.0,
         }
     }
 
@@ -206,9 +206,11 @@ impl Player {
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
         let x = self.xpos.round() as i32;
         let y = self.ypos.round() as i32;
+        let w = self.width.round() as u32;
+        let h = self.height.round() as u32;
         canvas.set_draw_color(Color::RGB(0xff, 0xff, 0xff));
         canvas
-            .fill_rect(Rect::new(x, y, self.width, self.height))
+            .fill_rect(Rect::new(x, y, w, h))
             .map_err(err_msg)?;
         Ok(())
     }
