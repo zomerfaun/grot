@@ -147,7 +147,9 @@ pub fn run(options: &Options) -> Result<(), Error> {
 }
 
 fn main() {
-    env_logger::init();
+    env_logger::Builder::from_default_env()
+        .default_format_timestamp(false)
+        .init();
     let options = Options::from_args();
     if let Err(error) = run(&options) {
         eprintln!("Error: {}", error);
