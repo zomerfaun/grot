@@ -55,7 +55,9 @@ impl Model {
     }
 
     pub fn up_pressed(&mut self) {
-        self.player.set_vert_state(PlayerVertState::Jumping);
+        if self.player.vert_state() == PlayerVertState::Standing {
+            self.player.set_vert_state(PlayerVertState::Jumping);
+        }
     }
 
     pub fn up_released(&mut self) {
