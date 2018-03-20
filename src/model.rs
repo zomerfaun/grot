@@ -37,7 +37,7 @@ impl Model {
     }
 
     pub fn left_released(&mut self) {
-        if self.player.state() == PlayerHorizState::MovingLeft {
+        if self.player.horiz_state() == PlayerHorizState::MovingLeft {
             self.player
                 .set_horiz_state(PlayerHorizState::StopMovingLeft);
         }
@@ -48,9 +48,19 @@ impl Model {
     }
 
     pub fn right_released(&mut self) {
-        if self.player.state() == PlayerHorizState::MovingRight {
+        if self.player.horiz_state() == PlayerHorizState::MovingRight {
             self.player
                 .set_horiz_state(PlayerHorizState::StopMovingRight);
+        }
+    }
+
+    pub fn up_pressed(&mut self) {
+        self.player.set_vert_state(PlayerVertState::Jumping);
+    }
+
+    pub fn up_released(&mut self) {
+        if self.player.vert_state() == PlayerVertState::Jumping {
+            self.player.set_vert_state(PlayerVertState::Falling);
         }
     }
 
@@ -104,7 +114,7 @@ impl Player {
         }
     }
 
-    pub fn state(&self) -> PlayerHorizState {
+    pub fn horiz_state(&self) -> PlayerHorizState {
         self.horiz_state
     }
 
@@ -114,6 +124,10 @@ impl Player {
         }
         self.horiz_state = state;
         debug!("Player horiz state is now {:?}", self.horiz_state);
+    }
+
+    pub fn vert_state(&self) -> PlayerVertState {
+        self.vert_state
     }
 
     pub fn set_vert_state(&mut self, state: PlayerVertState) {
@@ -130,9 +144,12 @@ impl Player {
         const WALK_ACCEL: f32 = WALK_SPEED / WALK_TIME;
         const STOP_TIME: f32 = 0.3; // Time to go from `WALK_SPEED` back to 0
         const STOP_ACCEL: f32 = WALK_SPEED / STOP_TIME;
-        const FALL_SPEED: f32 = 240.0;
-        const FALL_TIME: f32 = 2.0;
+        const FALL_SPEED: f32 = 300.0;
+        const FALL_TIME: f32 = 1.0;
         const FALL_ACCEL: f32 = FALL_SPEED / FALL_TIME;
+        const JUMP_SPEED: f32 = -120.0;
+        const JUMP_TIME: f32 = 0.1;
+        const JUMP_ACCEL: f32 = JUMP_SPEED / JUMP_TIME;
 
         let (xaccel, xminspeed, xmaxspeed) = match self.horiz_state {
             PlayerHorizState::Idle => (0.0, 0.0, 0.0),
@@ -144,19 +161,25 @@ impl Player {
         let yaccel = match self.vert_state {
             PlayerVertState::Standing => 0.0,
             PlayerVertState::Falling => FALL_ACCEL,
+            PlayerVertState::Jumping => JUMP_ACCEL,
         };
 
         // Calculate new speed based on acceleration
         self.xspeed = (self.xspeed + xaccel * dt).min(xmaxspeed).max(xminspeed);
-        self.yspeed = (self.yspeed + yaccel * dt).min(FALL_SPEED);
+        self.yspeed = (self.yspeed + yaccel * dt).min(FALL_SPEED).max(JUMP_SPEED);
 
         // Calculate new position based on speed
         self.xpos += self.xspeed * dt;
         self.ypos += self.yspeed * dt;
 
-        // Change state to idle when player has stopped moving
+        // Change horizontal state to idle when player has stopped moving
         if self.xspeed == 0.0 {
             self.set_horiz_state(PlayerHorizState::Idle);
+        }
+
+        // Change vertical state to falling when player has reached maximum jump speed
+        if self.yspeed == JUMP_SPEED {
+            self.set_vert_state(PlayerVertState::Falling);
         }
 
         // "Collision detection"
@@ -166,13 +189,25 @@ impl Player {
             self.yspeed = 0.0;
             self.ypos = floor_height - self.height as f32;
         }
+
+        trace!(
+            "Player accel: ({}, {}), speed: ({}, {}), pos: ({}, {})",
+            xaccel,
+            yaccel,
+            self.xspeed,
+            self.yspeed,
+            self.xpos,
+            self.ypos
+        );
     }
 
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
         let x = self.xpos.round() as i32;
         let y = self.ypos.round() as i32;
         canvas.set_draw_color(Color::RGB(0xff, 0xff, 0xff));
-        canvas.fill_rect(Rect::new(x, y, self.width, self.height)).map_err(err_msg)?;
+        canvas
+            .fill_rect(Rect::new(x, y, self.width, self.height))
+            .map_err(err_msg)?;
         Ok(())
     }
 }
@@ -190,6 +225,7 @@ pub enum PlayerHorizState {
 pub enum PlayerVertState {
     Standing,
     Falling,
+    Jumping,
 }
 
 pub struct Room {

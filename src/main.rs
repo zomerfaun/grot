@@ -106,6 +106,15 @@ pub fn run(options: &Options) -> Result<(), Error> {
                     keycode: Some(Keycode::Right),
                     ..
                 } => model.right_released(),
+                Event::KeyDown {
+                    keycode: Some(Keycode::Up),
+                    repeat: false,
+                    ..
+                } => model.up_pressed(),
+                Event::KeyUp {
+                    keycode: Some(Keycode::Up),
+                    ..
+                } => model.up_released(),
 
                 _ => trace!("Unhandled event of type {:?}", event),
             }
