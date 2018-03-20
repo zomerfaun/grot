@@ -3,8 +3,10 @@ use std::time::Duration;
 use failure::{err_msg, Error};
 use floating_duration::TimeAsFloat;
 use sdl2::pixels::Color;
-use sdl2::rect::Rect;
+use sdl2::rect::Rect as SdlRect;
 use sdl2::render::{Canvas, RenderTarget};
+
+use geom::Rect;
 
 /// Game model.
 ///
@@ -185,11 +187,11 @@ impl Player {
         }
 
         // Check for collision with floor
-        if room.tile_at_coord(self.xpos, self.ypos + self.height) == Tile::Filled {
+        let tile_below_feet = room.tile_at_coord(self.xpos, self.ypos + self.height);
+        if tile_below_feet.kind() == TileKind::Filled {
             self.set_vert_state(PlayerVertState::Standing);
             self.yspeed = 0.0;
-            self.ypos = ((self.ypos + self.height) as u32 / room.tile_size()) as f32
-                * room.tile_size() as f32 - self.height;
+            self.ypos = tile_below_feet.rect().top() - self.height;
         }
 
         trace!(
@@ -209,7 +211,7 @@ impl Player {
         let w = self.width.round() as u32;
         let h = self.height.round() as u32;
         canvas.set_draw_color(Color::RGB(0xff, 0xff, 0xff));
-        canvas.fill_rect(Rect::new(x, y, w, h)).map_err(err_msg)?;
+        canvas.fill_rect(SdlRect::new(x, y, w, h)).map_err(err_msg)?;
         Ok(())
     }
 }
@@ -233,18 +235,18 @@ pub enum PlayerVertState {
 pub struct Room {
     width: u32,
     height: u32,
-    tiles: Vec<Tile>,
+    tiles: Vec<TileKind>,
     tile_size: u32,
 }
 
 impl Room {
     pub fn new(width: u32, height: u32, tile_size: u32) -> Room {
         // Construct an empty roomsworth of tiles
-        let mut tiles = vec![Tile::Empty; (width * height) as usize];
+        let mut tiles = vec![TileKind::Empty; (width * height) as usize];
 
         // Add a floor
         for x in 0..width as usize {
-            tiles[(width * (height - 1)) as usize + x] = Tile::Filled;
+            tiles[(width * (height - 1)) as usize + x] = TileKind::Filled;
         }
 
         Room {
@@ -260,9 +262,16 @@ impl Room {
     }
 
     pub fn tile_at_index(&self, x: u32, y: u32) -> Tile {
-        *self.tiles
+        let kind = *self.tiles
             .get((self.width * y) as usize + x as usize)
-            .unwrap_or(&Tile::Empty)
+            .unwrap_or(&TileKind::Empty);
+        let rect = Rect::new(
+            (x * self.tile_size) as f32,
+            (y * self.tile_size) as f32,
+            self.tile_size as f32,
+            self.tile_size as f32,
+        );
+        Tile { kind, rect }
     }
 
     pub fn tile_at_coord(&self, x: f32, y: f32) -> Tile {
@@ -277,20 +286,35 @@ impl Room {
             let x = i as i32 % self.width as i32 * self.tile_size as i32;
             let y = i as i32 / self.width as i32 * self.tile_size as i32;
             let tile_color = match *tile {
-                Tile::Empty => Color::RGB(0x00, 0x00, 0x00),
-                Tile::Filled => Color::RGB(0x80, 0x80, 0x80),
+                TileKind::Empty => Color::RGB(0x00, 0x00, 0x00),
+                TileKind::Filled => Color::RGB(0x80, 0x80, 0x80),
             };
             canvas.set_draw_color(tile_color);
             canvas
-                .fill_rect(Rect::new(x, y, self.tile_size, self.tile_size))
+                .fill_rect(SdlRect::new(x, y, self.tile_size, self.tile_size))
                 .map_err(err_msg)?;
         }
         Ok(())
     }
 }
 
+pub struct Tile {
+    kind: TileKind,
+    rect: Rect,
+}
+
+impl Tile {
+    pub fn kind(&self) -> TileKind {
+        self.kind
+    }
+
+    pub fn rect(&self) -> Rect {
+        self.rect
+    }
+}
+
 #[derive(Clone, Copy, Eq, PartialEq)]
-pub enum Tile {
+pub enum TileKind {
     Empty,
     Filled,
 }

@@ -7,6 +7,7 @@ extern crate sdl2;
 #[macro_use]
 extern crate structopt;
 
+pub mod geom;
 pub mod model;
 
 use std::thread;
