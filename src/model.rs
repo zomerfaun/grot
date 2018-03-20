@@ -28,7 +28,7 @@ impl Model {
             time_since_last_tick: Duration::new(0, 0),
             player,
             old_player: player,
-            room: Room::new(20, 10),
+            room: Room::new(20, 10, 16),
         }
     }
 
@@ -75,7 +75,7 @@ impl Model {
             self.time_since_last_tick -= self.frame_duration;
             let time_delta = self.frame_duration.as_fractional_secs() as f32;
             self.old_player = self.player;
-            self.player.update(time_delta);
+            self.player.update(time_delta, &self.room);
         }
     }
 
@@ -140,7 +140,7 @@ impl Player {
         debug!("Player vert state is now {:?}", self.vert_state);
     }
 
-    pub fn update(&mut self, dt: f32) {
+    pub fn update(&mut self, dt: f32, room: &Room) {
         const WALK_SPEED: f32 = 120.0; // Maximum walk speed, in pixels per second
         const WALK_TIME: f32 = 0.2; // Time to go from 0 to `WALK_SPEED`, in seconds
         const WALK_ACCEL: f32 = WALK_SPEED / WALK_TIME;
@@ -184,12 +184,12 @@ impl Player {
             self.set_vert_state(PlayerVertState::Falling);
         }
 
-        // "Collision detection"
-        let floor_height = 160.0 - 16.0;
-        if self.ypos + self.height as f32 > floor_height {
+        // Check for collision with floor
+        if room.tile_at_coord(self.xpos, self.ypos + self.height) == Tile::Filled {
             self.set_vert_state(PlayerVertState::Standing);
             self.yspeed = 0.0;
-            self.ypos = floor_height - self.height as f32;
+            self.ypos = ((self.ypos + self.height) as u32 / room.tile_size()) as f32
+                * room.tile_size() as f32 - self.height;
         }
 
         trace!(
@@ -209,9 +209,7 @@ impl Player {
         let w = self.width.round() as u32;
         let h = self.height.round() as u32;
         canvas.set_draw_color(Color::RGB(0xff, 0xff, 0xff));
-        canvas
-            .fill_rect(Rect::new(x, y, w, h))
-            .map_err(err_msg)?;
+        canvas.fill_rect(Rect::new(x, y, w, h)).map_err(err_msg)?;
         Ok(())
     }
 }
@@ -236,10 +234,11 @@ pub struct Room {
     width: u32,
     height: u32,
     tiles: Vec<Tile>,
+    tile_size: u32,
 }
 
 impl Room {
-    pub fn new(width: u32, height: u32) -> Room {
+    pub fn new(width: u32, height: u32, tile_size: u32) -> Room {
         // Construct an empty roomsworth of tiles
         let mut tiles = vec![Tile::Empty; (width * height) as usize];
 
@@ -252,31 +251,45 @@ impl Room {
             width,
             height,
             tiles,
+            tile_size,
         }
     }
 
+    pub fn tile_size(&self) -> u32 {
+        self.tile_size
+    }
+
+    pub fn tile_at_index(&self, x: u32, y: u32) -> Tile {
+        *self.tiles
+            .get((self.width * y) as usize + x as usize)
+            .unwrap_or(&Tile::Empty)
+    }
+
+    pub fn tile_at_coord(&self, x: f32, y: f32) -> Tile {
+        self.tile_at_index(x as u32 / self.tile_size, y as u32 / self.tile_size)
+    }
+
     pub fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>) -> Result<(), Error> {
-        let tile_size = 16;
-        canvas.set_logical_size(self.width * tile_size, self.height * tile_size)?;
+        canvas.set_logical_size(self.width * self.tile_size, self.height * self.tile_size)?;
         canvas.set_draw_color(Color::RGB(0x20, 0x20, 0x20));
         canvas.clear();
         for (i, tile) in self.tiles.iter().enumerate() {
-            let x = i as i32 % self.width as i32 * tile_size as i32;
-            let y = i as i32 / self.width as i32 * tile_size as i32;
+            let x = i as i32 % self.width as i32 * self.tile_size as i32;
+            let y = i as i32 / self.width as i32 * self.tile_size as i32;
             let tile_color = match *tile {
                 Tile::Empty => Color::RGB(0x00, 0x00, 0x00),
                 Tile::Filled => Color::RGB(0x80, 0x80, 0x80),
             };
             canvas.set_draw_color(tile_color);
             canvas
-                .fill_rect(Rect::new(x, y, tile_size, tile_size))
+                .fill_rect(Rect::new(x, y, self.tile_size, self.tile_size))
                 .map_err(err_msg)?;
         }
         Ok(())
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Tile {
     Empty,
     Filled,
