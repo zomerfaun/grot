@@ -107,7 +107,14 @@ pub fn run(options: &Options) -> Result<(), Error> {
                     ..
                 } => {
                     game_mode = match game_mode {
-                        Mode::Run => Mode::Edit,
+                        Mode::Run => {
+                            // Make sure no player movement keys are pressed anymore,
+                            // as their key release events won't be received by the model
+                            model.key_released(Keycode::Left);
+                            model.key_released(Keycode::Right);
+                            model.key_released(Keycode::Up);
+                            Mode::Edit
+                        }
                         Mode::Edit => Mode::Run,
                     };
                     debug!("Switched to game mode {:?}", game_mode);
@@ -155,7 +162,7 @@ pub fn run(options: &Options) -> Result<(), Error> {
                 canvas.present();
             }
         }
-        
+
         let frame_finished = Instant::now();
         let frame_process_time = frame_finished - frame_started;
         trace!("Processing frame took {}", TimeFormat(frame_process_time));
