@@ -7,6 +7,7 @@ extern crate sdl2;
 #[macro_use]
 extern crate structopt;
 
+pub mod editor;
 pub mod geom;
 pub mod model;
 
@@ -20,6 +21,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::video::FullscreenType;
 use structopt::StructOpt;
 
+use editor::Editor;
 use model::Model;
 
 #[derive(Debug, StructOpt)]
@@ -30,6 +32,12 @@ pub struct Options {
                 help = "Limit frame rate to at most <fps>, or 0 for unlimited")]
     pub fps: u32,
     #[structopt(short = "v", long = "vsync", help = "Enable vsync")] pub vsync: bool,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum Mode {
+    Run,
+    Edit,
 }
 
 /// Runs the game.
@@ -49,7 +57,9 @@ pub fn run(options: &Options) -> Result<(), Error> {
     }
     let mut canvas = canvas_builder.build()?;
 
+    let mut game_mode = Mode::Run;
     let mut model = Model::new(150);
+    let mut editor = Editor::new();
 
     let limit_fps = options.fps != 0;
     let frame_duration = Duration::from_secs(1)
@@ -90,33 +100,62 @@ pub fn run(options: &Options) -> Result<(), Error> {
                         .map_err(err_msg)?;
                 }
 
-                // Any other keypress goes to the model
+                // Switch between Run and Edit mode with E
+                Event::KeyDown {
+                    keycode: Some(Keycode::E),
+                    repeat: false,
+                    ..
+                } => {
+                    game_mode = match game_mode {
+                        Mode::Run => Mode::Edit,
+                        Mode::Edit => Mode::Run,
+                    };
+                    debug!("Switched to game mode {:?}", game_mode);
+                }
+
+                // Any other keypress goes to the model or editor depending on game mode
                 Event::KeyDown {
                     keycode: Some(keycode),
                     repeat: false,
                     ..
-                } => model.key_pressed(keycode),
+                } => match game_mode {
+                    Mode::Run => model.key_pressed(keycode),
+                    Mode::Edit => editor.key_pressed(keycode),
+                },
 
-                // Any key release goes to the model
+                // Any key release goes to the model if it is active
                 Event::KeyUp {
                     keycode: Some(keycode),
                     ..
-                } => model.key_released(keycode),
+                } if game_mode == Mode::Run =>
+                {
+                    model.key_released(keycode)
+                }
 
                 _ => trace!("Unhandled event of type {:?}", event),
             }
         }
 
-        // Update model with the time passed since the previous update
         let update_time = Instant::now();
         let time_passed = update_time - last_update_time;
-        trace!("Time passed for model update: {}", TimeFormat(time_passed));
-        model.update(time_passed);
         last_update_time = update_time;
 
-        model.render(&mut canvas)?;
-        canvas.present();
+        // Do model or editor stuff depending on which is active
+        match game_mode {
+            Mode::Run => {
+                // Update model with the time passed since the previous update
+                trace!("Time passed for model update: {}", TimeFormat(time_passed));
+                model.update(time_passed);
 
+                model.render(&mut canvas)?;
+                canvas.present();
+            }
+            Mode::Edit => {
+                editor.render(&mut canvas)?;
+                canvas.present();
+            }
+        }
+        
         let frame_finished = Instant::now();
         let frame_process_time = frame_finished - frame_started;
         trace!("Processing frame took {}", TimeFormat(frame_process_time));
