@@ -1,4 +1,5 @@
 extern crate env_logger;
+#[macro_use]
 extern crate failure;
 extern crate floating_duration;
 #[macro_use]
@@ -10,6 +11,7 @@ extern crate structopt;
 pub mod editor;
 pub mod geom;
 pub mod model;
+pub mod room;
 
 use std::thread;
 use std::time::{Duration, Instant};
@@ -120,15 +122,23 @@ pub fn run(options: &Options) -> Result<(), Error> {
                     debug!("Switched to game mode {:?}", game_mode);
                 }
 
-                // Any other keypress goes to the model or editor depending on game mode
+                // Any other keypress goes to the model or editor depending on game mode;
+                // the editor receives key repeat events while the model does not.
                 Event::KeyDown {
                     keycode: Some(keycode),
                     repeat: false,
                     ..
-                } => match game_mode {
-                    Mode::Run => model.key_pressed(keycode),
-                    Mode::Edit => editor.key_pressed(keycode),
-                },
+                } if game_mode == Mode::Run =>
+                {
+                    model.key_pressed(keycode)
+                }
+                Event::KeyDown {
+                    keycode: Some(keycode),
+                    ..
+                } if game_mode == Mode::Edit =>
+                {
+                    editor.key_pressed(keycode)
+                }
 
                 // Any key release goes to the model if it is active
                 Event::KeyUp {
