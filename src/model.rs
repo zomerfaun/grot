@@ -185,12 +185,22 @@ impl Player {
             self.set_vert_state(PlayerVertState::Falling);
         }
 
-        // Check for collision with floor
-        let tile_below_feet = room.tile_at_coord(self.xpos, self.ypos + self.height);
-        if tile_below_feet.kind() == TileKind::Filled {
-            self.set_vert_state(PlayerVertState::Standing);
-            self.yspeed = 0.0;
-            self.ypos = tile_below_feet.rect().top() - self.height;
+        // Handle presence or absence of floor below player
+        let tile1_below = room.tile_at_coord(self.xpos, self.ypos + self.height);
+        let tile2_below = room.tile_at_coord(self.xpos + self.width, self.ypos + self.height);
+        match (tile1_below.kind(), tile2_below.kind()) {
+            // Stand if either tile is filled
+            (TileKind::Filled, _) | (_, TileKind::Filled) => {
+                self.set_vert_state(PlayerVertState::Standing);
+                self.yspeed = 0.0;
+                self.ypos = tile1_below.rect().top() - self.height;
+            }
+            // Fall if standing and both tiles are empty
+            (TileKind::Empty, TileKind::Empty) => {
+                if self.vert_state == PlayerVertState::Standing {
+                    self.set_vert_state(PlayerVertState::Falling);
+                }
+            }
         }
 
         trace!(
