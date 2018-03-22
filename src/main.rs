@@ -117,7 +117,11 @@ pub fn run(options: &Options) -> Result<(), Error> {
                             model.key_released(Keycode::Up);
                             Mode::Edit
                         }
-                        Mode::Edit => Mode::Run,
+                        Mode::Edit => {
+                            // Clone the editor's room to play in the model
+                            model.set_room(editor.room().clone());
+                            Mode::Run
+                        }
                     };
                     debug!("Switched to game mode {:?}", game_mode);
                 }

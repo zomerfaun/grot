@@ -35,6 +35,10 @@ impl Model {
         }
     }
 
+    pub fn set_room(&mut self, room: Room) {
+        self.room = room;
+    }
+
     pub fn key_pressed(&mut self, keycode: Keycode) {
         match keycode {
             Keycode::Left => self.player.set_horiz_state(PlayerHorizState::MovingLeft),

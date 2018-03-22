@@ -5,6 +5,7 @@ use sdl2::render::{Canvas, RenderTarget};
 
 use geom::Rect;
 
+#[derive(Clone)]
 pub struct Room {
     width: u32,
     height: u32,

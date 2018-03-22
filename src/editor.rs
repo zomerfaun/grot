@@ -20,6 +20,10 @@ impl Editor {
         }
     }
 
+    pub fn room(&self) -> &Room {
+        &self.room
+    }
+
     pub fn key_pressed(&mut self, key: Keycode) {
         match key {
             Keycode::Left => self.cursor_x = self.cursor_x.saturating_sub(1),
@@ -28,7 +32,7 @@ impl Editor {
             Keycode::Down => self.cursor_y = (self.cursor_y + 1).min(self.room.height() - 1),
             Keycode::Space => self.room.toggle_tile_at_index(self.cursor_x, self.cursor_y).unwrap_or_else(|error| {
                 // Cursor got out of bounds somehow, so reset it
-                error!("{}", error);
+                error!("{}; resetting cursor", error);
                 self.cursor_x = 0;
                 self.cursor_y = 0;
             }),
