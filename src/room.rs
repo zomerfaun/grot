@@ -111,6 +111,7 @@ impl Room {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
         let room: Room = ::serde_json::from_reader(reader)?;
+        ensure!(room.tiles.len() != 0, "Room dimensions must be nonzero");
         ensure!(
             room.tiles.len() == room.width as usize * room.height as usize,
             "Invalid tiles length {}; should be {} for room dimensions {}×{}",
