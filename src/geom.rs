@@ -17,8 +17,20 @@ impl Rect {
         Rect { x, y, w, h }
     }
 
+    pub fn left(&self) -> f32 {
+        self.x
+    }
+
+    pub fn right(&self) -> f32 {
+        self.x + self.w
+    }
+
     pub fn top(&self) -> f32 {
         self.y
+    }
+
+    pub fn bottom(&self) -> f32 {
+        self.y + self.h
     }
 
     pub fn sdl_rect(&self) -> SdlRect {

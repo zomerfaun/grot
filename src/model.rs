@@ -186,8 +186,8 @@ impl Player {
         }
 
         // Handle presence or absence of floor below player
-        let tile1_below = room.tile_at_coord(self.xpos, self.ypos + self.height);
-        let tile2_below = room.tile_at_coord(self.xpos + self.width, self.ypos + self.height);
+        let tile1_below = room.tile_at_coord(self.xpos + 0.5, self.ypos + self.height);
+        let tile2_below = room.tile_at_coord(self.xpos + self.width - 0.5, self.ypos + self.height);
         match (tile1_below.kind(), tile2_below.kind()) {
             // Stand if either tile is filled
             (TileKind::Filled, _) | (_, TileKind::Filled) => {
@@ -200,6 +200,31 @@ impl Player {
                 if self.vert_state == PlayerVertState::Standing {
                     self.set_vert_state(PlayerVertState::Falling);
                 }
+            }
+        }
+
+        // Stop horizontal movement when walking into a wall
+        if self.xspeed > 0.0 {
+            let tile1_right = room.tile_at_coord(self.xpos + self.width, self.ypos + 0.5);
+            let tile2_right = room.tile_at_coord(self.xpos + self.width, self.ypos + self.height - 0.5);
+            match (tile1_right.kind(), tile2_right.kind()) {
+                (TileKind::Filled, _) | (_, TileKind::Filled) => {
+                    self.set_horiz_state(PlayerHorizState::Idle);
+                    self.xspeed = 0.0;
+                    self.xpos = tile1_right.rect().left() - self.width;
+                }
+                _ => ()
+            }
+        } else if self.xspeed < 0.0 {
+            let tile1_left = room.tile_at_coord(self.xpos, self.ypos + 0.5);
+            let tile2_left = room.tile_at_coord(self.xpos, self.ypos + self.height - 0.5);
+            match (tile1_left.kind(), tile2_left.kind()) {
+                (TileKind::Filled, _) | (_, TileKind::Filled) => {
+                    self.set_horiz_state(PlayerHorizState::Idle);
+                    self.xspeed = 0.0;
+                    self.xpos = tile1_left.rect().right();
+                }
+                _ => ()
             }
         }
 
