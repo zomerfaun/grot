@@ -5,6 +5,10 @@ extern crate floating_duration;
 #[macro_use]
 extern crate log;
 extern crate sdl2;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 #[macro_use]
 extern crate structopt;
 
@@ -81,6 +85,8 @@ pub fn run(options: &Options) -> Result<(), Error> {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => {
+                    debug!("Saving room");
+                    editor.room().save("room.json")?;
                     debug!("Quitting");
                     return Ok(());
                 }

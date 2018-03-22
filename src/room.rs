@@ -1,3 +1,7 @@
+use std::fs::File;
+use std::io::BufWriter;
+use std::path::Path;
+
 use failure::{err_msg, Error};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect as SdlRect;
@@ -5,7 +9,7 @@ use sdl2::render::{Canvas, RenderTarget};
 
 use geom::Rect;
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Room {
     width: u32,
     height: u32,
@@ -96,6 +100,13 @@ impl Room {
         }
         Ok(())
     }
+
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+        let file = File::create(path)?;
+        let writer = BufWriter::new(file);
+        ::serde_json::to_writer(writer, self)?;
+        Ok(())
+    }
 }
 
 impl Default for Room {
@@ -119,7 +130,7 @@ impl Tile {
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Deserialize, Eq, PartialEq, Serialize)]
 pub enum TileKind {
     Empty,
     Filled,
