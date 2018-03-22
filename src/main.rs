@@ -29,6 +29,7 @@ use structopt::StructOpt;
 
 use editor::Editor;
 use model::Model;
+use room::Room;
 
 #[derive(Debug, StructOpt)]
 pub struct Options {
@@ -64,8 +65,9 @@ pub fn run(options: &Options) -> Result<(), Error> {
     let mut canvas = canvas_builder.build()?;
 
     let mut game_mode = Mode::Run;
-    let mut model = Model::new(150);
-    let mut editor = Editor::new();
+    let room = Room::load("room.json")?;
+    let mut model = Model::new(room.clone());
+    let mut editor = Editor::new(room);
 
     let limit_fps = options.fps != 0;
     let frame_duration = Duration::from_secs(1)

@@ -9,6 +9,8 @@ use sdl2::render::{Canvas, RenderTarget};
 
 use room::{Room, TileKind};
 
+const TICKS_PER_SECOND: u32 = 150;
+
 /// Game model.
 ///
 /// The `Model` can update at a stable frame rate that is independent from
@@ -24,14 +26,14 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new(fps: u32) -> Model {
+    pub fn new(room: Room) -> Model {
         let player = Player::new();
         Model {
-            frame_duration: Duration::from_secs(1) / fps,
+            frame_duration: Duration::from_secs(1) / TICKS_PER_SECOND,
             time_since_last_tick: Duration::new(0, 0),
             player,
             old_player: player,
-            room: Room::default(),
+            room,
         }
     }
 

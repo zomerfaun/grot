@@ -12,9 +12,9 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new() -> Editor {
+    pub fn new(room: Room) -> Editor {
         Editor {
-            room: Room::default(),
+            room,
             cursor_x: 0,
             cursor_y: 0,
         }

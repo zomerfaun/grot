@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufReader, BufWriter};
 use std::path::Path;
 
 use failure::{err_msg, Error};
@@ -65,15 +65,14 @@ impl Room {
     }
 
     pub fn toggle_tile_at_index(&mut self, x: u32, y: u32) -> Result<(), Error> {
-        if x >= self.width || y >= self.height {
-            bail!(
-                "Tile index ({}, {}) out of bounds for room dimensions ({}, {})",
-                x,
-                y,
-                self.width,
-                self.height
-            );
-        }
+        ensure!(
+            x < self.width && y < self.height,
+            "Tile index ({}, {}) out of bounds for room dimensions {}×{}",
+            x,
+            y,
+            self.width,
+            self.height
+        );
         let kind = &mut self.tiles[(self.width * y) as usize + x as usize];
         *kind = match *kind {
             TileKind::Empty => TileKind::Filled,
@@ -106,6 +105,21 @@ impl Room {
         let writer = BufWriter::new(file);
         ::serde_json::to_writer(writer, self)?;
         Ok(())
+    }
+
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Room, Error> {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let room: Room = ::serde_json::from_reader(reader)?;
+        ensure!(
+            room.tiles.len() == room.width as usize * room.height as usize,
+            "Invalid tiles length {}; should be {} for room dimensions {}×{}",
+            room.tiles.len(),
+            room.width * room.height,
+            room.width,
+            room.height
+        );
+        Ok(room)
     }
 }
 
