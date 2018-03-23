@@ -190,13 +190,14 @@ impl Player {
         // Stop horizontal movement when walking into a wall
         if self.xspeed > 0.0 {
             let tile1_right = room.tile_at_coord(self.xpos + self.width, self.ypos + 0.5);
-            let tile2_right = room.tile_at_coord(self.xpos + self.width, self.ypos + self.height - 0.5);
+            let tile2_right =
+                room.tile_at_coord(self.xpos + self.width, self.ypos + self.height - 0.5);
             match (tile1_right.kind(), tile2_right.kind()) {
                 (TileKind::Filled, _) | (_, TileKind::Filled) => {
                     self.xspeed = 0.0;
                     self.xpos = tile1_right.rect().left() - self.width;
                 }
-                _ => ()
+                _ => (),
             }
         } else if self.xspeed < 0.0 {
             let tile1_left = room.tile_at_coord(self.xpos, self.ypos + 0.5);
@@ -206,26 +207,41 @@ impl Player {
                     self.xspeed = 0.0;
                     self.xpos = tile1_left.rect().right();
                 }
-                _ => ()
+                _ => (),
             }
         }
 
-        // Handle presence or absence of floor below player
-        let tile1_below = room.tile_at_coord(self.xpos + 0.5, self.ypos + self.height);
-        let tile2_below = room.tile_at_coord(self.xpos + self.width - 0.5, self.ypos + self.height);
-        match (tile1_below.kind(), tile2_below.kind()) {
-            // Stand if either tile is filled
-            (TileKind::Filled, _) | (_, TileKind::Filled) => {
-                self.set_vert_state(PlayerVertState::Standing);
-                self.yspeed = 0.0;
-                self.ypos = tile1_below.rect().top() - self.height;
-            }
-            // Fall if standing and both tiles are empty
-            (TileKind::Empty, TileKind::Empty) => {
-                if self.vert_state == PlayerVertState::Standing {
-                    self.set_vert_state(PlayerVertState::Falling);
+        if self.yspeed >= 0.0 {
+            // Handle presence or absence of floor below player
+            let tile1_below = room.tile_at_coord(self.xpos + 0.5, self.ypos + self.height);
+            let tile2_below =
+                room.tile_at_coord(self.xpos + self.width - 0.5, self.ypos + self.height);
+            match (tile1_below.kind(), tile2_below.kind()) {
+                // Stand if either tile is filled
+                (TileKind::Filled, _) | (_, TileKind::Filled) => {
+                    self.set_vert_state(PlayerVertState::Standing);
+                    self.yspeed = 0.0;
+                    self.ypos = tile1_below.rect().top() - self.height;
+                }
+                // Fall if standing and both tiles are empty
+                (TileKind::Empty, TileKind::Empty) => {
+                    if self.vert_state == PlayerVertState::Standing {
+                        self.set_vert_state(PlayerVertState::Falling);
+                    }
                 }
             }
+        } else {
+            // Stop vertical movement when hitting a ceiling
+            let tile1_above = room.tile_at_coord(self.xpos + 0.5, self.ypos);
+            let tile2_above = room.tile_at_coord(self.xpos + self.width - 0.5, self.ypos);
+            match (tile1_above.kind(), tile2_above.kind()) {
+                (TileKind::Filled, _) | (_, TileKind::Filled) => {
+                    self.set_vert_state(PlayerVertState::Falling);
+                    self.yspeed = 0.0;
+                    self.ypos = tile1_above.rect().bottom();
+                }
+                _ => (),
+            }            
         }
 
         trace!(
