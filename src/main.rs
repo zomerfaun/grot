@@ -65,7 +65,14 @@ pub fn run(options: &Options) -> Result<(), Error> {
     let mut canvas = canvas_builder.build()?;
 
     let mut game_mode = Mode::Run;
-    let room = Room::load("room.json")?;
+    let room = Room::load("room.json")
+        .map_err(|e| {
+            warn!(
+                "Couldn't load room.json: {}; falling back to default room",
+                e
+            )
+        })
+        .unwrap_or_default();
     let mut model = Model::new(room.clone());
     let mut editor = Editor::new(room);
 
@@ -207,11 +214,12 @@ fn main() {
         .init();
     let options = Options::from_args();
     if let Err(error) = run(&options) {
-        eprintln!("Error: {}", error);
+        error!("A fatal error occurred:");
+        error!("{}", error);
         for cause in error.causes().skip(1) {
-            eprintln!("Cause: {}", cause);
+            error!("Cause: {}", cause);
         }
-        eprintln!("{}", error.backtrace());
+        error!("{}", error.backtrace());
         std::process::exit(1);
     }
 }
