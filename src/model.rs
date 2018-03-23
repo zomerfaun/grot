@@ -110,7 +110,7 @@ impl Player {
         Player {
             horiz_state: PlayerHorizState::Idle,
             vert_state: PlayerVertState::Falling,
-            xpos: 10.0,
+            xpos: 20.0,
             ypos: 10.0,
             xspeed: 0.0,
             yspeed: 0.0,
@@ -152,7 +152,7 @@ impl Player {
         const FALL_SPEED: f32 = 300.0;
         const FALL_TIME: f32 = 1.0;
         const FALL_ACCEL: f32 = FALL_SPEED / FALL_TIME;
-        const JUMP_SPEED: f32 = -120.0;
+        const JUMP_SPEED: f32 = -130.0;
         const JUMP_TIME: f32 = 0.1;
         const JUMP_ACCEL: f32 = JUMP_SPEED / JUMP_TIME;
 
@@ -187,6 +187,29 @@ impl Player {
             self.set_vert_state(PlayerVertState::Falling);
         }
 
+        // Stop horizontal movement when walking into a wall
+        if self.xspeed > 0.0 {
+            let tile1_right = room.tile_at_coord(self.xpos + self.width, self.ypos + 0.5);
+            let tile2_right = room.tile_at_coord(self.xpos + self.width, self.ypos + self.height - 0.5);
+            match (tile1_right.kind(), tile2_right.kind()) {
+                (TileKind::Filled, _) | (_, TileKind::Filled) => {
+                    self.xspeed = 0.0;
+                    self.xpos = tile1_right.rect().left() - self.width;
+                }
+                _ => ()
+            }
+        } else if self.xspeed < 0.0 {
+            let tile1_left = room.tile_at_coord(self.xpos, self.ypos + 0.5);
+            let tile2_left = room.tile_at_coord(self.xpos, self.ypos + self.height - 0.5);
+            match (tile1_left.kind(), tile2_left.kind()) {
+                (TileKind::Filled, _) | (_, TileKind::Filled) => {
+                    self.xspeed = 0.0;
+                    self.xpos = tile1_left.rect().right();
+                }
+                _ => ()
+            }
+        }
+
         // Handle presence or absence of floor below player
         let tile1_below = room.tile_at_coord(self.xpos + 0.5, self.ypos + self.height);
         let tile2_below = room.tile_at_coord(self.xpos + self.width - 0.5, self.ypos + self.height);
@@ -202,31 +225,6 @@ impl Player {
                 if self.vert_state == PlayerVertState::Standing {
                     self.set_vert_state(PlayerVertState::Falling);
                 }
-            }
-        }
-
-        // Stop horizontal movement when walking into a wall
-        if self.xspeed > 0.0 {
-            let tile1_right = room.tile_at_coord(self.xpos + self.width, self.ypos + 0.5);
-            let tile2_right = room.tile_at_coord(self.xpos + self.width, self.ypos + self.height - 0.5);
-            match (tile1_right.kind(), tile2_right.kind()) {
-                (TileKind::Filled, _) | (_, TileKind::Filled) => {
-                    self.set_horiz_state(PlayerHorizState::Idle);
-                    self.xspeed = 0.0;
-                    self.xpos = tile1_right.rect().left() - self.width;
-                }
-                _ => ()
-            }
-        } else if self.xspeed < 0.0 {
-            let tile1_left = room.tile_at_coord(self.xpos, self.ypos + 0.5);
-            let tile2_left = room.tile_at_coord(self.xpos, self.ypos + self.height - 0.5);
-            match (tile1_left.kind(), tile2_left.kind()) {
-                (TileKind::Filled, _) | (_, TileKind::Filled) => {
-                    self.set_horiz_state(PlayerHorizState::Idle);
-                    self.xspeed = 0.0;
-                    self.xpos = tile1_left.rect().right();
-                }
-                _ => ()
             }
         }
 
