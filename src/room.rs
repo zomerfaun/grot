@@ -57,7 +57,7 @@ impl Room {
             self.tile_size as f32,
             self.tile_size as f32,
         );
-        Tile { kind, rect }
+        Tile { x, y, kind, rect }
     }
 
     pub fn tile_at_coord(&self, x: f32, y: f32) -> Tile {
@@ -131,18 +131,10 @@ impl Default for Room {
 }
 
 pub struct Tile {
-    kind: TileKind,
-    rect: Rect,
-}
-
-impl Tile {
-    pub fn kind(&self) -> TileKind {
-        self.kind
-    }
-
-    pub fn rect(&self) -> Rect {
-        self.rect
-    }
+    pub x: u32,
+    pub y: u32,
+    pub kind: TileKind,
+    pub rect: Rect,
 }
 
 #[derive(Clone, Copy, Deserialize, Eq, PartialEq, Serialize)]

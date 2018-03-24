@@ -192,22 +192,26 @@ impl Player {
             let tile1_right = room.tile_at_coord(self.xpos + self.width, self.ypos + 0.5);
             let tile2_right =
                 room.tile_at_coord(self.xpos + self.width, self.ypos + self.height - 0.5);
-            match (tile1_right.kind(), tile2_right.kind()) {
-                (TileKind::Filled, _) | (_, TileKind::Filled) => {
-                    self.xspeed = 0.0;
-                    self.xpos = tile1_right.rect().left() - self.width;
-                }
-                _ => (),
+            if (tile1_right.kind == TileKind::Filled
+                && room.tile_at_index(tile1_right.x - 1, tile1_right.y).kind == TileKind::Empty)
+                || (tile2_right.kind == TileKind::Filled
+                    && room.tile_at_index(tile2_right.x - 1, tile2_right.y).kind == TileKind::Empty)
+            {
+                trace!("Player hit wall to the right");
+                self.xspeed = 0.0;
+                self.xpos = tile1_right.rect.left() - self.width;
             }
         } else if self.xspeed < 0.0 {
             let tile1_left = room.tile_at_coord(self.xpos, self.ypos + 0.5);
             let tile2_left = room.tile_at_coord(self.xpos, self.ypos + self.height - 0.5);
-            match (tile1_left.kind(), tile2_left.kind()) {
-                (TileKind::Filled, _) | (_, TileKind::Filled) => {
-                    self.xspeed = 0.0;
-                    self.xpos = tile1_left.rect().right();
-                }
-                _ => (),
+            if (tile1_left.kind == TileKind::Filled
+                && room.tile_at_index(tile1_left.x + 1, tile1_left.y).kind == TileKind::Empty)
+                || (tile2_left.kind == TileKind::Filled
+                    && room.tile_at_index(tile2_left.x + 1, tile2_left.y).kind == TileKind::Empty)
+            {
+                trace!("Player hit wall to the left");
+                self.xspeed = 0.0;
+                self.xpos = tile1_left.rect.right();
             }
         }
 
@@ -216,17 +220,23 @@ impl Player {
             let tile1_below = room.tile_at_coord(self.xpos + 0.5, self.ypos + self.height);
             let tile2_below =
                 room.tile_at_coord(self.xpos + self.width - 0.5, self.ypos + self.height);
-            match (tile1_below.kind(), tile2_below.kind()) {
+            match (tile1_below.kind, tile2_below.kind) {
                 // Stand if either tile is filled
                 (TileKind::Filled, _) | (_, TileKind::Filled) => {
-                    self.set_vert_state(PlayerVertState::Standing);
-                    self.yspeed = 0.0;
-                    self.ypos = tile1_below.rect().top() - self.height;
+                    if self.yspeed > 0.0 {
+                        trace!("Player hit floor");
+                        self.set_vert_state(PlayerVertState::Standing);
+                        self.yspeed = 0.0;
+                        self.ypos = tile1_below.rect.top() - self.height;
+                    }
                 }
                 // Fall if standing and both tiles are empty
                 (TileKind::Empty, TileKind::Empty) => {
-                    if self.vert_state == PlayerVertState::Standing {
-                        self.set_vert_state(PlayerVertState::Falling);
+                    if self.yspeed == 0.0 {
+                        trace!("Player fall from ledge");
+                        if self.vert_state == PlayerVertState::Standing {
+                            self.set_vert_state(PlayerVertState::Falling);
+                        }
                     }
                 }
             }
@@ -234,14 +244,15 @@ impl Player {
             // Stop vertical movement when hitting a ceiling
             let tile1_above = room.tile_at_coord(self.xpos + 0.5, self.ypos);
             let tile2_above = room.tile_at_coord(self.xpos + self.width - 0.5, self.ypos);
-            match (tile1_above.kind(), tile2_above.kind()) {
+            match (tile1_above.kind, tile2_above.kind) {
                 (TileKind::Filled, _) | (_, TileKind::Filled) => {
+                    trace!("Player hit ceiling");
                     self.set_vert_state(PlayerVertState::Falling);
                     self.yspeed = 0.0;
-                    self.ypos = tile1_above.rect().bottom();
+                    self.ypos = tile1_above.rect.bottom();
                 }
                 _ => (),
-            }            
+            }
         }
 
         trace!(
