@@ -48,9 +48,11 @@ impl Room {
     }
 
     pub fn tile_at_index(&self, x: u32, y: u32) -> Tile {
-        let kind = *self.tiles
-            .get(self.width as usize * y as usize + x as usize)
-            .unwrap_or(&TileKind::Empty);
+        let kind = if x < self.width && y < self.height {
+            self.tiles[self.width as usize * y as usize + x as usize]
+        } else {
+            TileKind::Empty
+        };
         let rect = Rect::new(
             (x * self.tile_size) as f32,
             (y * self.tile_size) as f32,
