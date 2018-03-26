@@ -79,6 +79,11 @@ impl Model {
             let time_delta = self.frame_duration.as_fractional_secs() as f32;
             self.old_player = self.player;
             self.player.update(time_delta, &self.room);
+            let room_width = self.room.width() as f32 * self.room.tile_size() as f32;
+            if self.player.xpos >= room_width {
+                self.room = Room::default();
+                self.player.xpos -= room_width;
+            }
         }
     }
 
